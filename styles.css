@@ -25,8 +25,69 @@ body {
 }
 
 /* ==========================================================================
-   GPU-ACCELERATED KEYFRAME ANIMATIONS (EXACT PARITY)
+   GPU-ACCELERATED KEYFRAME ANIMATIONS (REFERENCE VIDEO CHOREOGRAPHY)
    ========================================================================== */
+
+@keyframes navSlideDown {
+  0% {
+    transform: translateY(-115%);
+    opacity: 0;
+  }
+  100% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes blindWipeReveal {
+  0% {
+    transform: scaleY(1);
+  }
+  100% {
+    transform: scaleY(0);
+  }
+}
+
+@keyframes heroModelChoreography {
+  0% {
+    transform: translateY(-28px) scale(1.07);
+    opacity: 0;
+  }
+  30% {
+    transform: translateY(-28px) scale(1.03);
+    opacity: 1;
+  }
+  65% {
+    transform: translateY(-28px) scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes slideInFromLeft {
+  0% {
+    transform: translateX(-36px);
+    opacity: 0;
+  }
+  100% {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes slideInFromRight {
+  0% {
+    transform: translateX(36px);
+    opacity: 0;
+  }
+  100% {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
 
 @keyframes maskSlideUp {
   0% {
@@ -41,7 +102,7 @@ body {
 
 @keyframes fadeUpSmooth {
   0% {
-    transform: translateY(24px);
+    transform: translateY(18px);
     opacity: 0;
   }
   100% {
@@ -50,14 +111,12 @@ body {
   }
 }
 
-@keyframes heroImageReveal {
-  0% {
-    transform: translateY(34px) scale(1.06);
-    opacity: 0;
-  }
-  100% {
-    transform: translateY(0) scale(1);
+@keyframes cursorBlink {
+  0%, 49% {
     opacity: 1;
+  }
+  50%, 100% {
+    opacity: 0;
   }
 }
 
@@ -84,28 +143,54 @@ body {
   }
 }
 
-.animate-mask-line-1 {
-  animation: maskSlideUp 0.9s cubic-bezier(0.16, 1, 0.3, 1) 0.08s both;
-}
-
-.animate-mask-line-2 {
-  animation: maskSlideUp 0.9s cubic-bezier(0.16, 1, 0.3, 1) 0.2s both;
-}
-
-.animate-hero-cta {
-  animation: fadeUpSmooth 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.34s both;
-}
-
-.animate-hero-left {
-  animation: fadeUpSmooth 0.85s cubic-bezier(0.16, 1, 0.3, 1) 0.44s both;
-}
-
-.animate-hero-right {
-  animation: fadeUpSmooth 0.85s cubic-bezier(0.16, 1, 0.3, 1) 0.54s both;
+.animate-nav-drop {
+  animation: navSlideDown 0.75s cubic-bezier(0.16, 1, 0.3, 1) 0.05s both;
 }
 
 .animate-hero-model {
-  animation: heroImageReveal 1.1s cubic-bezier(0.16, 1, 0.3, 1) 0.16s both;
+  animation: heroModelChoreography 1.45s cubic-bezier(0.22, 1, 0.36, 1) 0.25s both;
+}
+
+.hero-blinds-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 15;
+  display: flex;
+  flex-direction: column;
+  pointer-events: none;
+}
+
+.hero-blind-slat {
+  flex: 1;
+  width: 100%;
+  transform-origin: top center;
+  animation: blindWipeReveal 0.65s cubic-bezier(0.65, 0, 0.35, 1) both;
+}
+
+.animate-hero-left {
+  animation: slideInFromLeft 0.8s cubic-bezier(0.16, 1, 0.3, 1) 1.05s both;
+}
+
+.animate-hero-right {
+  animation: slideInFromRight 0.8s cubic-bezier(0.16, 1, 0.3, 1) 1.05s both;
+}
+
+.animate-mask-line-1 {
+  animation: maskSlideUp 0.75s cubic-bezier(0.16, 1, 0.3, 1) 1.35s both;
+}
+
+.typewriter-cursor {
+  display: inline-block;
+  width: 0.08em;
+  height: 0.85em;
+  margin-left: 4px;
+  vertical-align: baseline;
+  background-color: currentColor;
+  animation: cursorBlink 0.75s infinite;
+}
+
+.animate-hero-cta {
+  animation: fadeUpSmooth 0.7s cubic-bezier(0.16, 1, 0.3, 1) 2.25s both;
 }
 
 .animate-modal-in {
