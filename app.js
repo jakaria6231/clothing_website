@@ -436,6 +436,22 @@ const DEFAULT_PRODUCTS = [
   }
 ];
 
+function loadSavedBag() {
+  try {
+    const raw = localStorage.getItem('rr_wear_bag');
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (e) {
+    return [];
+  }
+}
+
+function saveBagToStorage(bag) {
+  try {
+    localStorage.setItem('rr_wear_bag', JSON.stringify(bag));
+  } catch (e) {}
+}
+
 // ============================================================================
 // 5. GLOBAL APPLICATION STATE
 // ============================================================================
@@ -448,6 +464,11 @@ const state = {
   categories: [...DEFAULT_CATEGORIES],
   products: [...DEFAULT_PRODUCTS],
   isDataLoaded: true,
+
+  // Customer Shopping Bag State
+  bag: loadSavedBag(),
+  bagModalOpen: false,
+  shopModalBagItems: null,
 
   // Storefront Routing & UI
   activeView: 'home', // 'home' | 'product-details' | 'login' | 'dashboard'
@@ -509,6 +530,31 @@ const state = {
   customForm: JSON.parse(JSON.stringify(DEFAULT_SITE_SETTINGS))
 };
 
+function getBagTotalCount() {
+  return state.bag.reduce((sum, item) => sum + (item.qty || 1), 0);
+}
+
+function getBagTotalAmount() {
+  return state.bag.reduce((sum, item) => sum + Number(item.price || 0) * (item.qty || 1), 0);
+}
+
+function addToBag(product) {
+  if (!product) return;
+  const existing = state.bag.find((item) => item.id === product.id);
+  if (existing) {
+    existing.qty = (existing.qty || 1) + 1;
+  } else {
+    state.bag.push({
+      id: product.id,
+      name: product.name,
+      price: Number(product.price || 0),
+      image: product.images?.[0] || '',
+      qty: 1
+    });
+  }
+  saveBagToStorage(state.bag);
+}
+
 let toastTimer = null;
 function showToast(message, type = 'success') {
   const root = document.getElementById('toast-root');
@@ -518,7 +564,7 @@ function showToast(message, type = 'success') {
       <span class="w-2 h-2 rounded-full shrink-0 ${type === 'error' ? 'bg-red-400' : 'bg-cyan-400'}"></span>
       <span class="flex-1">${escapeHtml(message)}</span>
       <button data-action="close-toast" class="text-white/60 hover:text-white">
-        <i data-lucide="x" class="w-3.5 h-3.5"></i>
+        <i data-lucide="x" class="w-3.5 h-3.5 pointer-events-none"></i>
       </button>
     </div>
   `;
@@ -988,6 +1034,7 @@ function renderStorefrontView() {
   const isDark = state.theme === 'dark';
   const s = state.siteSettings;
   const publishedProducts = state.products.filter((p) => p.visibility !== 'draft');
+  const bagCount = getBagTotalCount();
 
   const filteredStoreProducts = publishedProducts.filter((prod) => {
     const matchesCat = state.selectedCategoryFilter === 'ALL' || prod.categoryId === state.selectedCategoryFilter;
@@ -1112,10 +1159,17 @@ function renderStorefrontView() {
                 }">
                   ${state.isOwnerAuthenticated ? 'DASHBOARD' : 'LOGIN'}
                 </button>
-                <button data-action="nav-portal" title="${state.isOwnerAuthenticated ? 'Owner Dashboard' : 'Owner Login'}" class="hidden sm:flex w-9 h-9 rounded-full items-center justify-center transition-all shadow-sm ${
+                <button data-action="open-bag" title="Your Shopping Bag" class="relative flex w-9 h-9 rounded-full items-center justify-center transition-all shadow-sm active:scale-95 ${
                   isDark ? 'bg-white text-[#09090B] hover:bg-zinc-200' : 'bg-[#0A0A0A] text-white hover:bg-[#272A2E]'
                 }">
-                  <i data-lucide="lock" class="w-3.5 h-3.5"></i>
+                  <i data-lucide="shopping-bag" class="w-4 h-4 pointer-events-none"></i>
+                  ${
+                    bagCount > 0
+                      ? `<span id="header-bag-badge" class="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-cyan-400 text-[#09090B] font-ui text-[10px] font-extrabold flex items-center justify-center shadow">
+                          ${bagCount}
+                        </span>`
+                      : ''
+                  }
                 </button>
               </div>
             </div>
@@ -1684,7 +1738,7 @@ function renderCatalogGridHtml(filteredStoreProducts) {
 }
 
 // ============================================================================
-// 9. MODALS RENDERING (SOCIAL ORDERING + HERO VIDEO + CONFIRMATIONS)
+// 9. MODALS RENDERING (SOCIAL ORDERING + SHOPPING BAG + HERO VIDEO)
 // ============================================================================
 function renderModals() {
   const root = document.getElementById('modal-root');
@@ -1693,10 +1747,157 @@ function renderModals() {
   const s = state.siteSettings;
   let html = '';
 
-  if (state.shopModalProduct) {
+  // 1. Shopping Bag Modal (Triggered by clicking the Bag icon in the header)
+  if (state.bagModalOpen) {
+    const totalMoney = getBagTotalAmount();
+    const totalItems = getBagTotalCount();
+
+    html += `
+      <div data-action="close-bag-modal" class="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+        <div onclick="event.stopPropagation()" class="rounded-[30px] max-w-md w-full overflow-hidden shadow-2xl border animate-modal-in ${
+          isDark ? 'bg-[#121216] border-white/10 text-white' : 'bg-white border-black/5 text-[#0A0A0A]'
+        }">
+          <div class="px-6 py-4 border-b flex items-center justify-between ${
+            isDark ? 'bg-[#1B1B21] border-white/10' : 'bg-[#F7F8F9] border-black/5'
+          }">
+            <span class="font-ui text-xs font-extrabold uppercase tracking-[0.1em] inline-flex items-center gap-2">
+              <i data-lucide="shopping-bag" class="w-4 h-4"></i>
+              YOUR BAG (${totalItems})
+            </span>
+            <button type="button" data-action="close-bag-modal" class="w-8 h-8 rounded-full flex items-center justify-center transition-colors ${
+              isDark ? 'bg-white/10 hover:bg-white/20 text-white' : 'bg-white hover:bg-black/5 text-[#0A0A0A]'
+            }">
+              <i data-lucide="x" class="w-4 h-4 pointer-events-none"></i>
+            </button>
+          </div>
+
+          <div class="p-6 space-y-5">
+            ${
+              state.bag.length === 0
+                ? `<div class="py-10 text-center space-y-3">
+                    <div class="w-12 h-12 rounded-2xl mx-auto flex items-center justify-center ${
+                      isDark ? 'bg-white/10 text-zinc-400' : 'bg-[#F5F7F8] text-[#6E7378]'
+                    }">
+                      <i data-lucide="shopping-bag" class="w-6 h-6"></i>
+                    </div>
+                    <p class="font-ui text-sm font-bold">Your bag is empty</p>
+                    <p class="text-xs ${isDark ? 'text-zinc-400' : 'text-[#6E7378]'}">
+                      Click SHOP on any product and tap "Add to Your Bag" to build your order.
+                    </p>
+                  </div>`
+                : `<div class="max-h-[300px] overflow-y-auto space-y-3 pr-1">
+                    ${state.bag
+                      .map(
+                        (item) => `
+                      <div class="flex items-center gap-3.5 p-3 rounded-2xl border ${
+                        isDark ? 'bg-[#1B1B21] border-white/10' : 'bg-[#F5F7F8] border-black/5'
+                      }">
+                        <img src="${escapeHtml(item.image)}" alt="${escapeHtml(item.name)}" class="w-14 h-16 rounded-xl object-cover shrink-0 bg-black/10" />
+                        <div class="flex-1 min-w-0">
+                          <h4 class="font-ui text-xs font-extrabold truncate">${escapeHtml(item.name)}</h4>
+                          <p class="font-ui text-[11px] font-bold mt-0.5 ${isDark ? 'text-cyan-400' : 'text-[#525860]'}">
+                            USD ${(Number(item.price || 0) * (item.qty || 1)).toFixed(2)}
+                          </p>
+                          <div class="flex items-center gap-2 mt-2">
+                            <button type="button" data-action="bag-dec" data-id="${escapeHtml(item.id)}" class="w-6 h-6 rounded-lg flex items-center justify-center font-bold text-xs ${
+                              isDark ? 'bg-white/10 hover:bg-white/20 text-white' : 'bg-white hover:bg-black/10 text-[#0A0A0A]'
+                            }">-</button>
+                            <span class="font-ui text-xs font-bold min-w-[16px] text-center">${item.qty || 1}</span>
+                            <button type="button" data-action="bag-inc" data-id="${escapeHtml(item.id)}" class="w-6 h-6 rounded-lg flex items-center justify-center font-bold text-xs ${
+                              isDark ? 'bg-white/10 hover:bg-white/20 text-white' : 'bg-white hover:bg-black/10 text-[#0A0A0A]'
+                            }">+</button>
+                          </div>
+                        </div>
+                        <button type="button" data-action="bag-remove" data-id="${escapeHtml(item.id)}" title="Remove item" class="p-2 rounded-xl text-red-500 hover:bg-red-500/15 transition-colors">
+                          <i data-lucide="trash-2" class="w-4 h-4 pointer-events-none"></i>
+                        </button>
+                      </div>
+                    `
+                      )
+                      .join('')}
+                  </div>
+
+                  <div class="pt-4 border-t space-y-4 ${isDark ? 'border-white/10' : 'border-black/10'}">
+                    <div class="flex items-center justify-between">
+                      <span class="font-ui text-xs font-bold uppercase tracking-wider ${isDark ? 'text-zinc-400' : 'text-[#6E7378]'}">TOTAL AMOUNT</span>
+                      <span class="font-display text-xl font-extrabold ${isDark ? 'text-cyan-400' : 'text-[#0A0A0A]'}">
+                        USD ${totalMoney.toFixed(2)}
+                      </span>
+                    </div>
+
+                    <button type="button" data-action="bag-shop-now" class="w-full font-ui text-xs font-extrabold uppercase tracking-[0.12em] py-4 rounded-2xl shadow-lg hover:shadow-xl transition-all flex items-center justify-center gap-2 active:scale-[0.99] ${
+                      isDark ? 'bg-white text-[#09090B] hover:bg-zinc-200' : 'bg-[#0A0A0A] text-white hover:bg-[#272A2E]'
+                    }">
+                      SHOP NOW
+                      <i data-lucide="chevron-right" class="w-4 h-4 pointer-events-none"></i>
+                    </button>
+                  </div>`
+            }
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  // 2. Social Media Order Modal (Single Product OR Multi-Product Bag Checkout)
+  if (state.shopModalProduct || (state.shopModalBagItems && state.shopModalBagItems.length > 0)) {
+    const isBagCheckout = Array.isArray(state.shopModalBagItems) && state.shopModalBagItems.length > 0;
     const product = state.shopModalProduct;
-    const productUrl = `${window.location.origin}${window.location.pathname}#product/${product.id}`;
-    const inquiryMessage = `Hello ${s.brandName}! I am interested in purchasing ${product.name}. Please provide more information. (${productUrl})`;
+    let inquiryMessage = '';
+    let selectedCardHtml = '';
+
+    if (isBagCheckout) {
+      const items = state.shopModalBagItems;
+      const total = items.reduce((sum, it) => sum + Number(it.price || 0) * (it.qty || 1), 0);
+      const itemLines = items
+        .map((it, i) => {
+          const url = `${window.location.origin}${window.location.pathname}#product/${it.id}`;
+          return `${i + 1}. ${it.name} (x${it.qty || 1}) - USD ${(Number(it.price || 0) * (it.qty || 1)).toFixed(2)} (${url})`;
+        })
+        .join('\n');
+      inquiryMessage = `Hello ${s.brandName}! I would like to order the following items from my bag:\n${itemLines}\nTotal: USD ${total.toFixed(2)}. Please provide more information.`;
+
+      selectedCardHtml = `
+        <div class="p-3.5 rounded-2xl space-y-2 ${isDark ? 'bg-[#1B1B21]' : 'bg-[#F5F7F8]'}">
+          <div class="flex items-center justify-between">
+            <span class="font-ui text-[10px] font-bold uppercase tracking-wider ${isDark ? 'text-zinc-400' : 'text-[#6E7378]'}">
+              SELECTED BAG ITEMS (${items.reduce((sum, it) => sum + (it.qty || 1), 0)})
+            </span>
+            <span class="font-ui text-xs font-extrabold ${isDark ? 'text-cyan-400' : 'text-[#0A0A0A]'}">
+              Total: USD ${total.toFixed(2)}
+            </span>
+          </div>
+          <div class="max-h-24 overflow-y-auto space-y-1.5 pr-1">
+            ${items
+              .map(
+                (it) => `
+              <div class="flex items-center justify-between text-xs">
+                <span class="font-ui font-bold truncate pr-2">${escapeHtml(it.name)} ×${it.qty || 1}</span>
+                <span class="font-ui font-semibold shrink-0 opacity-80">USD ${(Number(it.price || 0) * (it.qty || 1)).toFixed(2)}</span>
+              </div>
+            `
+              )
+              .join('')}
+          </div>
+        </div>
+      `;
+    } else {
+      const productUrl = `${window.location.origin}${window.location.pathname}#product/${product.id}`;
+      inquiryMessage = `Hello ${s.brandName}! I am interested in purchasing ${product.name}. Please provide more information. (${productUrl})`;
+
+      selectedCardHtml = `
+        <div class="flex items-center gap-4 p-3.5 rounded-2xl ${isDark ? 'bg-[#1B1B21]' : 'bg-[#F5F7F8]'}">
+          <img src="${escapeHtml(product.images?.[0])}" alt="${escapeHtml(product.name)}" class="w-16 h-20 rounded-xl object-cover shrink-0" />
+          <div class="min-w-0">
+            <span class="font-ui text-[10px] font-bold uppercase tracking-wider ${isDark ? 'text-zinc-400' : 'text-[#6E7378]'}">SELECTED ITEM</span>
+            <h3 class="font-ui text-sm font-extrabold truncate">${escapeHtml(product.name)}</h3>
+            <p class="font-ui text-xs font-bold mt-0.5 ${isDark ? 'text-cyan-400' : 'text-[#0A0A0A]'}">
+              USD ${Number(product.price || 0).toFixed(2)}
+            </p>
+          </div>
+        </div>
+      `;
+    }
 
     const cleanPhone = (s.whatsappNumber || '').replace(/[^0-9]/g, '');
     const whatsappHref = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(inquiryMessage)}`;
@@ -1707,37 +1908,28 @@ function renderModals() {
 
     html += `
       <div data-action="close-shop-modal" class="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-        <div onclick="event.stopPropagation()" class="rounded-[30px] max-w-md w-full overflow-hidden shadow-2xl border animate-modal-in ${
+        <div onclick="event.stopPropagation()" class="rounded-[30px] max-w-md w-full max-h-[92vh] overflow-y-auto shadow-2xl border animate-modal-in ${
           isDark ? 'bg-[#121216] border-white/10 text-white' : 'bg-white border-black/5 text-[#0A0A0A]'
         }">
-          <div class="px-6 py-4 border-b flex items-center justify-between ${
+          <div class="px-6 py-4 border-b flex items-center justify-between sticky top-0 z-10 ${
             isDark ? 'bg-[#1B1B21] border-white/10' : 'bg-[#F7F8F9] border-black/5'
           }">
             <span class="font-ui text-xs font-extrabold uppercase tracking-[0.1em]">ORDER THROUGH SOCIAL MEDIA</span>
-            <button data-action="close-shop-modal" class="w-8 h-8 rounded-full flex items-center justify-center transition-colors ${
-              isDark ? 'bg-white/10 hover:bg-white/20 text-white' : 'bg-white hover:bg-black/5'
+            <button type="button" data-action="close-shop-modal" aria-label="Close" class="w-8 h-8 rounded-full flex items-center justify-center transition-colors cursor-pointer ${
+              isDark ? 'bg-white/10 hover:bg-white/20 text-white' : 'bg-white hover:bg-black/5 text-[#0A0A0A]'
             }">
-              <i data-lucide="x" class="w-4 h-4"></i>
+              <i data-lucide="x" class="w-4 h-4 pointer-events-none"></i>
             </button>
           </div>
 
-          <div class="p-6 space-y-5">
-            <div class="flex items-center gap-4 p-3.5 rounded-2xl ${isDark ? 'bg-[#1B1B21]' : 'bg-[#F5F7F8]'}">
-              <img src="${escapeHtml(product.images?.[0])}" alt="${escapeHtml(product.name)}" class="w-16 h-20 rounded-xl object-cover shrink-0" />
-              <div class="min-w-0">
-                <span class="font-ui text-[10px] font-bold uppercase tracking-wider ${isDark ? 'text-zinc-400' : 'text-[#6E7378]'}">SELECTED ITEM</span>
-                <h3 class="font-ui text-sm font-extrabold truncate">${escapeHtml(product.name)}</h3>
-                <p class="font-ui text-xs font-bold mt-0.5 ${isDark ? 'text-cyan-400' : 'text-[#0A0A0A]'}">
-                  USD ${Number(product.price || 0).toFixed(2)}
-                </p>
-              </div>
-            </div>
+          <div class="p-6 space-y-4">
+            ${selectedCardHtml}
 
             <p class="text-xs leading-relaxed ${isDark ? 'text-zinc-400' : 'text-[#5C636A]'}">
               Choose your preferred platform below to connect directly with <strong class="${isDark ? 'text-white' : 'text-[#0A0A0A]'}">${escapeHtml(s.brandName)}</strong>:
             </p>
 
-            <div class="space-y-3">
+            <div class="space-y-2.5">
               <a href="${escapeHtml(whatsappHref)}" target="_blank" rel="noopener noreferrer" class="w-full flex items-center justify-between px-5 py-3.5 rounded-2xl bg-[#25D366] hover:bg-[#20BD5A] text-white font-ui font-bold text-xs uppercase tracking-wider shadow-md hover:shadow-lg transition-all">
                 <span class="flex items-center gap-3">
                   ${renderWhatsAppIcon('w-5 h-5')}
@@ -1763,15 +1955,37 @@ function renderModals() {
               </a>
             </div>
 
+            ${
+              !isBagCheckout && product
+                ? `<div class="pt-1 space-y-2.5">
+                    <div class="flex items-center gap-3">
+                      <div class="h-px flex-1 ${isDark ? 'bg-white/10' : 'bg-black/10'}"></div>
+                      <span class="font-ui text-[10px] font-extrabold uppercase tracking-[0.16em] ${isDark ? 'text-zinc-400' : 'text-[#6E7378]'}">OR</span>
+                      <div class="h-px flex-1 ${isDark ? 'bg-white/10' : 'bg-black/10'}"></div>
+                    </div>
+
+                    <button type="button" data-action="add-to-bag" data-id="${escapeHtml(product.id)}" class="w-full flex items-center justify-between px-5 py-3.5 rounded-2xl font-ui font-bold text-xs uppercase tracking-wider shadow-md hover:shadow-lg transition-all active:scale-[0.99] ${
+                      isDark ? 'bg-white text-[#09090B] hover:bg-zinc-200' : 'bg-[#0A0A0A] text-white hover:bg-[#272A2E]'
+                    }">
+                      <span class="flex items-center gap-3">
+                        <i data-lucide="shopping-bag" class="w-5 h-5 pointer-events-none"></i>
+                        <span>Add to Your Bag</span>
+                      </span>
+                      <i data-lucide="plus" class="w-4 h-4 opacity-85 pointer-events-none"></i>
+                    </button>
+                  </div>`
+                : ''
+            }
+
             <div class="rounded-2xl p-3.5 border space-y-2 ${isDark ? 'bg-[#1B1B21] border-white/10' : 'bg-[#F7F8F9] border-black/5'}">
               <div class="flex items-center justify-between">
                 <span class="font-ui text-[10px] font-bold uppercase tracking-wider ${isDark ? 'text-zinc-400' : 'text-[#6E7378]'}">PREPARED INQUIRY MESSAGE</span>
-                <button data-action="copy-inquiry" data-msg="${escapeHtml(inquiryMessage)}" class="inline-flex items-center gap-1 font-ui text-[10px] font-bold uppercase hover:underline">
-                  <i data-lucide="copy" class="w-3 h-3"></i>
+                <button type="button" data-action="copy-inquiry" data-msg="${escapeHtml(inquiryMessage)}" class="inline-flex items-center gap-1 font-ui text-[10px] font-bold uppercase hover:underline">
+                  <i data-lucide="copy" class="w-3 h-3 pointer-events-none"></i>
                   Copy
                 </button>
               </div>
-              <p class="text-[11px] leading-relaxed ${isDark ? 'text-zinc-300' : 'text-[#4A5056]'}">${escapeHtml(inquiryMessage)}</p>
+              <p class="text-[11px] leading-relaxed whitespace-pre-line ${isDark ? 'text-zinc-300' : 'text-[#4A5056]'}">${escapeHtml(inquiryMessage)}</p>
             </div>
           </div>
         </div>
@@ -1786,7 +2000,7 @@ function renderModals() {
           <div class="flex items-center justify-between px-6 py-4 border-b border-white/10">
             ${renderBrandLogo(s.logoUrl, s.brandName, 'sm', false)}
             <button data-action="close-hero-video" class="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center">
-              <i data-lucide="x" class="w-4 h-4"></i>
+              <i data-lucide="x" class="w-4 h-4 pointer-events-none"></i>
             </button>
           </div>
           <div class="p-6 text-center space-y-5">
@@ -3272,13 +3486,65 @@ document.addEventListener('click', async (e) => {
   } else if (action === 'open-shop') {
     const prod = state.products.find((p) => p.id === btn.getAttribute('data-id'));
     if (prod) {
+      state.shopModalBagItems = null;
       state.shopModalProduct = prod;
       renderModals();
       if (window.lucide) window.lucide.createIcons();
     }
   } else if (action === 'close-shop-modal') {
     state.shopModalProduct = null;
+    state.shopModalBagItems = null;
     renderModals();
+  }
+  // Shopping Bag Actions
+  else if (action === 'add-to-bag') {
+    const prod = state.products.find((p) => p.id === btn.getAttribute('data-id'));
+    if (prod) {
+      addToBag(prod);
+      state.shopModalProduct = null;
+      state.shopModalBagItems = null;
+      render();
+      showToast(`Added "${prod.name}" to your bag.`);
+    }
+  } else if (action === 'open-bag') {
+    state.bagModalOpen = true;
+    renderModals();
+    if (window.lucide) window.lucide.createIcons();
+  } else if (action === 'close-bag-modal') {
+    state.bagModalOpen = false;
+    renderModals();
+  } else if (action === 'bag-inc') {
+    const item = state.bag.find((it) => it.id === btn.getAttribute('data-id'));
+    if (item) {
+      item.qty = (item.qty || 1) + 1;
+      saveBagToStorage(state.bag);
+      render();
+    }
+  } else if (action === 'bag-dec') {
+    const id = btn.getAttribute('data-id');
+    const item = state.bag.find((it) => it.id === id);
+    if (item) {
+      if ((item.qty || 1) > 1) {
+        item.qty -= 1;
+      } else {
+        state.bag = state.bag.filter((it) => it.id !== id);
+      }
+      saveBagToStorage(state.bag);
+      render();
+    }
+  } else if (action === 'bag-remove') {
+    const id = btn.getAttribute('data-id');
+    state.bag = state.bag.filter((it) => it.id !== id);
+    saveBagToStorage(state.bag);
+    render();
+  } else if (action === 'bag-shop-now') {
+    if (state.bag.length > 0) {
+      state.bagModalOpen = false;
+      state.shopModalProduct = null;
+      state.shopModalBagItems = [...state.bag];
+      renderModals();
+      if (window.lucide) window.lucide.createIcons();
+    }
   } else if (action === 'copy-inquiry') {
     navigator.clipboard?.writeText(btn.getAttribute('data-msg') || '');
     showToast('Order message copied! Paste it in your chat.');
