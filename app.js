@@ -456,6 +456,7 @@ const state = {
   selectedCategoryFilter: 'ALL',
   searchQuery: '',
   mobileMenuOpen: false,
+  heroAnimPlayed: false,
 
   // Modals
   shopModalProduct: null,
@@ -691,6 +692,9 @@ function navigateTo(view, productId = null) {
     render();
     window.scrollTo({ top: 0, behavior: 'smooth' });
     return;
+  }
+  if (view === 'home') {
+    state.heroAnimPlayed = false;
   }
   window.location.hash = view === 'home' ? '' : view;
   state.activeView = view;
@@ -1010,7 +1014,7 @@ function renderStorefrontView() {
     }">
       <div class="max-w-[1440px] mx-auto px-2.5 sm:px-5 py-2.5 sm:py-4 space-y-5 sm:space-y-7">
         <!-- STICKY ARCHITECTURAL HEADER -->
-        <header class="sticky top-2.5 z-40">
+        <header class="sticky top-2.5 z-40 ${!state.heroAnimPlayed ? 'animate-nav-drop' : ''}">
           <div class="backdrop-blur-xl rounded-full px-4 sm:px-7 py-2.5 border flex items-center justify-between relative transition-colors duration-300 ${
             isDark
               ? 'bg-[#121216]/85 border-white/10 shadow-[0_8px_30px_rgba(0,0,0,0.45)]'
@@ -1160,14 +1164,14 @@ function renderStorefrontView() {
                   isDark ? 'text-white' : 'text-[#0A0A0A]'
                 }">
                   <span class="block overflow-hidden pb-1">
-                    <span class="block animate-mask-line-1">${escapeHtml(s.heroTitleLine1)}</span>
+                    <span class="block ${!state.heroAnimPlayed ? 'animate-mask-line-1' : ''}">${escapeHtml(s.heroTitleLine1)}</span>
                   </span>
-                  <span class="block overflow-hidden pb-1">
-                    <span class="block animate-mask-line-2">${escapeHtml(s.heroTitleLine2)}</span>
+                  <span class="block overflow-hidden pb-1 min-h-[1.05em]">
+                    <span id="hero-typewriter-target">${state.heroAnimPlayed ? escapeHtml(s.heroTitleLine2) : ''}</span><span id="hero-typewriter-cursor" class="typewriter-cursor ${state.heroAnimPlayed ? 'hidden' : ''}"></span>
                   </span>
                 </h1>
 
-                <div class="mt-6 flex flex-wrap items-center justify-center gap-3 animate-hero-cta">
+                <div class="mt-6 flex flex-wrap items-center justify-center gap-3 ${!state.heroAnimPlayed ? 'animate-hero-cta' : ''}">
                   <button data-action="filter-cat" data-cat="ALL" class="font-ui text-[11px] font-bold uppercase tracking-[0.12em] px-8 py-3.5 rounded-full transition-all shadow-md hover:shadow-xl hover:-translate-y-0.5 active:scale-95 ${
                     isDark ? 'bg-white text-[#09090B] hover:bg-zinc-200' : 'bg-[#0A0A0A] text-white hover:bg-[#22252A]'
                   }">
@@ -1185,7 +1189,7 @@ function renderStorefrontView() {
 
               <div class="relative z-10 mt-6 sm:mt-4 grid grid-cols-1 lg:grid-cols-12 items-end gap-6">
                 <!-- Bottom-Left Thumbnails -->
-                <div class="lg:col-span-3 pb-7 sm:pb-10 order-2 lg:order-1 flex flex-col items-start animate-hero-left">
+                <div class="lg:col-span-3 pb-7 sm:pb-10 order-2 lg:order-1 flex flex-col items-start ${!state.heroAnimPlayed ? 'animate-hero-left' : ''}">
                   <div class="flex -space-x-2.5 mb-3">
                     ${[s.heroThumb1, s.heroThumb2, s.heroThumb3]
                       .map(
@@ -1204,10 +1208,24 @@ function renderStorefrontView() {
                   </p>
                 </div>
 
-                <!-- Center Foreground Model -->
-                <div class="lg:col-span-6 order-1 lg:order-2 flex justify-center items-end animate-hero-model">
+                <!-- Center Foreground Model with Venetian Blind Wipe -->
+                <div class="lg:col-span-6 order-1 lg:order-2 flex justify-center items-end ${!state.heroAnimPlayed ? 'animate-hero-model' : ''}">
                   <div class="relative w-full max-w-[450px] h-[360px] sm:h-[450px] rounded-t-[32px] overflow-hidden">
                     <img src="${escapeHtml(s.heroImage)}" alt="${escapeHtml(s.brandName)}" class="w-full h-full object-cover object-top transition-transform duration-700 ease-out hover:scale-[1.04]" />
+                    ${
+                      !state.heroAnimPlayed
+                        ? `<div class="hero-blinds-overlay" aria-hidden="true">
+                            ${[0, 1, 2, 3, 4, 5, 6]
+                              .map(
+                                (i) =>
+                                  `<div class="hero-blind-slat ${
+                                    isDark ? 'bg-[#121216]' : 'bg-[#DCE5E9]'
+                                  }" style="animation-delay: ${0.32 + i * 0.055}s;"></div>`
+                              )
+                              .join('')}
+                          </div>`
+                        : ''
+                    }
                     <div class="absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t ${
                       isDark
                         ? 'from-[#0E0E12] via-[#0E0E12]/45 to-transparent'
@@ -1217,7 +1235,7 @@ function renderStorefrontView() {
                 </div>
 
                 <!-- Bottom-Right Floating Lookbook Video Card -->
-                <div class="lg:col-span-3 pb-7 sm:pb-10 order-3 flex lg:justify-end animate-hero-right">
+                <div class="lg:col-span-3 pb-7 sm:pb-10 order-3 flex lg:justify-end ${!state.heroAnimPlayed ? 'animate-hero-right' : ''}">
                   <button data-action="open-hero-video" class="group relative w-full sm:w-56 h-32 rounded-2xl overflow-hidden bg-[#16181B] shadow-xl border text-left focus:outline-none ${
                     isDark ? 'border-white/15' : 'border-white/60'
                   }">
@@ -2937,8 +2955,36 @@ function renderDashboardView() {
 }
 
 // ============================================================================
-// 12. MASTER RENDER & INTERSECTION OBSERVER SCROLL REVEALS
+// 12. MASTER RENDER, HERO TYPEWRITER & INTERSECTION OBSERVER SCROLL REVEALS
 // ============================================================================
+let typewriterTimeout = null;
+function runHeroTypewriter() {
+  if (state.activeView !== 'home' || state.heroAnimPlayed) return;
+  const target = document.getElementById('hero-typewriter-target');
+  const cursor = document.getElementById('hero-typewriter-cursor');
+  const fullText = state.siteSettings.heroTitleLine2 || 'EVERY WORKOUT!';
+  if (!target) return;
+
+  clearTimeout(typewriterTimeout);
+  let charIndex = 0;
+
+  typewriterTimeout = setTimeout(() => {
+    const typeNext = () => {
+      if (charIndex <= fullText.length) {
+        target.textContent = fullText.slice(0, charIndex);
+        charIndex++;
+        typewriterTimeout = setTimeout(typeNext, 55);
+      } else {
+        state.heroAnimPlayed = true;
+        setTimeout(() => {
+          if (cursor) cursor.classList.add('hidden');
+        }, 1200);
+      }
+    };
+    typeNext();
+  }, 1450);
+}
+
 let scrollObserver = null;
 function initScrollReveals() {
   if (scrollObserver) scrollObserver.disconnect();
@@ -2971,6 +3017,7 @@ function render() {
   renderModals();
   if (window.lucide) window.lucide.createIcons();
   initScrollReveals();
+  runHeroTypewriter();
 }
 
 // ============================================================================
