@@ -1253,45 +1253,71 @@ function renderStorefrontView() {
               </div>
             </section>
 
-            <!-- SECTION 2: 3-COLUMN STAGGERED EDITORIAL SHOWCASE -->
-            <div class="scroll-reveal reveal-rise">
-              <section class="relative rounded-[28px] sm:rounded-[36px] border p-6 sm:p-12 overflow-hidden transition-colors duration-300 ${
-                isDark ? 'bg-[#121216] border-white/10' : 'bg-[#F4F5F7] border-white'
-              }">
-                <div aria-hidden="true" class="pointer-events-none select-none absolute inset-0 flex items-center justify-center overflow-hidden">
-                  <span class="font-display text-[19vw] font-extrabold uppercase tracking-[-0.04em] leading-none ${
-                    isDark ? 'text-white/[0.03]' : 'text-[#E3E7EC]'
-                  }">
-                    ${escapeHtml(s.showcaseWatermark || 'WORKOUT')}
-                  </span>
+           <!-- SECTION 2: 3-COLUMN STAGGERED EDITORIAL SHOWCASE -->
+            <section id="showcase-section" class="relative rounded-[28px] sm:rounded-[36px] border p-6 sm:p-12 overflow-hidden transition-colors duration-300 ${
+              isDark ? 'bg-[#121216] border-white/10' : 'bg-[#F4F5F7] border-white'
+            }">
+              <div aria-hidden="true" class="pointer-events-none select-none absolute inset-0 flex items-center justify-center overflow-hidden">
+                <span id="showcase-watermark-text" class="font-display text-[19vw] font-extrabold uppercase tracking-[-0.04em] leading-none transition-transform duration-150 ease-out ${
+                  isDark ? 'text-white/[0.03]' : 'text-[#E3E7EC]'
+                }">
+                  ${escapeHtml(s.showcaseWatermark || 'WORKOUT')}
+                </span>
+              </div>
+
+              <div class="relative z-10 grid grid-cols-1 md:grid-cols-12 gap-6 sm:gap-8 items-center max-w-6xl mx-auto">
+                <!-- Left Column -->
+                <div id="showcase-col-left" class="md:col-span-3 flex flex-col gap-4 md:-mt-16 transition-transform duration-150 ease-out">
+                  <div class="showcase-card-enter rounded-2xl overflow-hidden aspect-[4/5] shadow-sm group relative ${isDark ? 'bg-[#1B1B21]' : 'bg-[#EAECEF]'}" data-delay="60">
+                    <img src="${escapeHtml(s.showcaseLeftImg)}" alt="Performance detail" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-out" />
+                    <div class="showcase-blinds-overlay" aria-hidden="true">
+                      ${[0, 1, 2, 3, 4, 5, 6]
+                        .map(
+                          (i) =>
+                            `<div class="showcase-blind-slat ${isDark ? 'bg-[#121216]' : 'bg-[#F4F5F7]'}" style="animation-delay: ${0.12 + i * 0.05}s;"></div>`
+                        )
+                        .join('')}
+                    </div>
+                  </div>
+                  <p class="showcase-caption-enter text-[11px] leading-relaxed ${isDark ? 'text-zinc-400' : 'text-[#5C636A]'}" data-delay="380">
+                    ${escapeHtml(s.showcaseLeftCaption)}
+                  </p>
                 </div>
 
-                <div class="relative z-10 grid grid-cols-1 md:grid-cols-12 gap-6 sm:gap-8 items-center max-w-6xl mx-auto">
-                  <div class="scroll-reveal reveal-rise md:col-span-3 flex flex-col gap-4 md:-mt-16" style="transition-delay: 80ms;">
-                    <div class="rounded-2xl overflow-hidden aspect-[4/5] shadow-sm group ${isDark ? 'bg-[#1B1B21]' : 'bg-[#EAECEF]'}">
-                      <img src="${escapeHtml(s.showcaseLeftImg)}" alt="Performance detail" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-out" />
-                    </div>
-                    <p class="text-[11px] leading-relaxed ${isDark ? 'text-zinc-400' : 'text-[#5C636A]'}">
-                      ${escapeHtml(s.showcaseLeftCaption)}
-                    </p>
-                  </div>
-
-                  <div class="scroll-reveal reveal-scale md:col-span-6 flex justify-center" style="transition-delay: 160ms;">
-                    <div class="w-full max-w-[360px] rounded-[28px] overflow-hidden aspect-[3/4] bg-[#1C1E21] shadow-lg group">
-                      <img src="${escapeHtml(s.showcaseCenterImg)}" alt="Monochrome athlete" class="w-full h-full object-cover grayscale contrast-125 group-hover:scale-105 transition-transform duration-700 ease-out" />
-                    </div>
-                  </div>
-
-                  <div class="scroll-reveal reveal-rise md:col-span-3 flex flex-col gap-4 md:mt-20" style="transition-delay: 240ms;">
-                    <p class="text-[11px] leading-relaxed ${isDark ? 'text-zinc-400' : 'text-[#5C636A]'}">
-                      ${escapeHtml(s.showcaseRightCaption)}
-                    </p>
-                    <div class="rounded-2xl overflow-hidden aspect-[4/5] shadow-sm group ${isDark ? 'bg-[#1B1B21]' : 'bg-[#EAECEF]'}">
-                      <img src="${escapeHtml(s.showcaseRightImg)}" alt="Compression fit" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-out" />
+                <!-- Center Column -->
+                <div id="showcase-col-center" class="md:col-span-6 flex justify-center">
+                  <div class="showcase-card-enter w-full max-w-[360px] rounded-[28px] overflow-hidden aspect-[3/4] bg-[#1C1E21] shadow-lg group relative" data-delay="180">
+                    <img src="${escapeHtml(s.showcaseCenterImg)}" alt="Monochrome athlete" class="w-full h-full object-cover grayscale contrast-125 group-hover:scale-105 transition-transform duration-700 ease-out" />
+                    <div class="showcase-blinds-overlay" aria-hidden="true">
+                      ${[0, 1, 2, 3, 4, 5, 6, 7, 8]
+                        .map(
+                          (i) =>
+                            `<div class="showcase-blind-slat ${isDark ? 'bg-[#121216]' : 'bg-[#F4F5F7]'}" style="animation-delay: ${0.22 + i * 0.048}s;"></div>`
+                        )
+                        .join('')}
                     </div>
                   </div>
                 </div>
-              </section>
+
+                <!-- Right Column -->
+                <div id="showcase-col-right" class="md:col-span-3 flex flex-col gap-4 md:mt-20 transition-transform duration-150 ease-out">
+                  <p class="showcase-caption-enter text-[11px] leading-relaxed ${isDark ? 'text-zinc-400' : 'text-[#5C636A]'}" data-delay="460">
+                    ${escapeHtml(s.showcaseRightCaption)}
+                  </p>
+                  <div class="showcase-card-enter rounded-2xl overflow-hidden aspect-[4/5] shadow-sm group relative ${isDark ? 'bg-[#1B1B21]' : 'bg-[#EAECEF]'}" data-delay="300">
+                    <img src="${escapeHtml(s.showcaseRightImg)}" alt="Compression fit" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-out" />
+                    <div class="showcase-blinds-overlay" aria-hidden="true">
+                      ${[0, 1, 2, 3, 4, 5, 6]
+                        .map(
+                          (i) =>
+                            `<div class="showcase-blind-slat ${isDark ? 'bg-[#121216]' : 'bg-[#F4F5F7]'}" style="animation-delay: ${0.32 + i * 0.05}s;"></div>`
+                        )
+                        .join('')}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </section>
             </div>
 
             <!-- SECTION 3: 2-COLUMN PERFORMANCE EDITORIAL SPLIT -->
@@ -2955,135 +2981,118 @@ function renderDashboardView() {
 }
 
 // ============================================================================
-// 12. MASTER RENDER, HERO TYPEWRITER & INTERSECTION OBSERVER SCROLL REVEALS
+// 12. MASTER RENDER, INTERSECTION OBSERVER SCROLL REVEALS & SHOWCASE MOTION
 // ============================================================================
-let typewriterTimeout = null;
-function runHeroTypewriter() {
-  if (state.activeView !== 'home' || state.heroAnimPlayed) return;
-  const target = document.getElementById('hero-typewriter-target');
-  const cursor = document.getElementById('hero-typewriter-cursor');
-  const fullText = state.siteSettings.heroTitleLine2 || 'EVERY WORKOUT!';
-  if (!target) return;
+let showcaseObserver = null;
+let showcaseTimers = [];
 
-  clearTimeout(typewriterTimeout);
-  target.textContent = '';
-  if (cursor) cursor.classList.remove('hidden');
-  let charIndex = 0;
-
-  typewriterTimeout = setTimeout(() => {
-    const typeNext = () => {
-      if (charIndex <= fullText.length) {
-        target.textContent = fullText.slice(0, charIndex);
-        charIndex++;
-        typewriterTimeout = setTimeout(typeNext, 55);
-      } else {
-        state.heroAnimPlayed = true;
-        setTimeout(() => {
-          if (cursor) cursor.classList.add('hidden');
-        }, 1200);
-      }
-    };
-    typeNext();
-  }, 1450);
-}
-
-function replayHeroAnimations() {
-  const hero = document.getElementById('hero-section');
-  const header = document.querySelector('header');
-  if (!hero) return;
-
+function playShowcaseAnimation(sectionEl) {
   const isDark = state.theme === 'dark';
-  state.heroAnimPlayed = false;
+  showcaseTimers.forEach((t) => clearTimeout(t));
+  showcaseTimers = [];
 
-  // 1. Restart CSS animations on header and hero children
-  const animatedSelectors = [
-    '.animate-nav-drop',
-    '.animate-hero-model',
-    '.animate-hero-left',
-    '.animate-hero-right',
-    '.animate-mask-line-1',
-    '.animate-hero-cta'
-  ];
+  // 1. Rebuild Venetian-blind slats so they wipe open cleanly on every entry
+  sectionEl.querySelectorAll('.showcase-card-enter').forEach((card, cardIdx) => {
+    const oldOverlay = card.querySelector('.showcase-blinds-overlay');
+    if (oldOverlay) oldOverlay.remove();
 
-  if (header) {
-    header.classList.remove('animate-nav-drop');
-    void header.offsetWidth;
-    header.classList.add('animate-nav-drop');
-  }
-
-  // Re-attach animation classes in case they were omitted after first play
-  const modelCol = hero.querySelector('.lg\\:col-span-6');
-  const leftCol = hero.querySelector('.lg\\:col-span-3.order-2');
-  const rightCol = hero.querySelector('.lg\\:col-span-3.order-3');
-  const line1 = hero.querySelector('h1 > span:first-child > span');
-  const ctaRow = hero.querySelector('h1 + div');
-
-  const pairs = [
-    [modelCol, 'animate-hero-model'],
-    [leftCol, 'animate-hero-left'],
-    [rightCol, 'animate-hero-right'],
-    [line1, 'animate-mask-line-1'],
-    [ctaRow, 'animate-hero-cta']
-  ];
-
-  pairs.forEach(([el, cls]) => {
-    if (!el) return;
-    el.classList.remove(cls);
-    void el.offsetWidth;
-    el.classList.add(cls);
-  });
-
-  // 2. Rebuild & restart the Venetian-blind slats on the model image
-  const modelImgWrap = modelCol?.querySelector('.relative');
-  if (modelImgWrap) {
-    const oldBlinds = modelImgWrap.querySelector('.hero-blinds-overlay');
-    if (oldBlinds) oldBlinds.remove();
-
-    const blindsDiv = document.createElement('div');
-    blindsDiv.className = 'hero-blinds-overlay';
-    blindsDiv.setAttribute('aria-hidden', 'true');
-    blindsDiv.innerHTML = [0, 1, 2, 3, 4, 5, 6]
+    const slatCount = cardIdx === 1 ? 9 : 7;
+    const baseDelay = cardIdx === 0 ? 0.12 : cardIdx === 1 ? 0.22 : 0.32;
+    const overlay = document.createElement('div');
+    overlay.className = 'showcase-blinds-overlay';
+    overlay.setAttribute('aria-hidden', 'true');
+    overlay.innerHTML = Array.from({ length: slatCount })
       .map(
-        (i) =>
-          `<div class="hero-blind-slat ${
-            isDark ? 'bg-[#121216]' : 'bg-[#DCE5E9]'
-          }" style="animation-delay: ${0.32 + i * 0.055}s;"></div>`
+        (_, i) =>
+          `<div class="showcase-blind-slat ${
+            isDark ? 'bg-[#121216]' : 'bg-[#F4F5F7]'
+          }" style="animation-delay: ${baseDelay + i * 0.05}s;"></div>`
       )
       .join('');
-    modelImgWrap.appendChild(blindsDiv);
-  }
+    card.appendChild(overlay);
 
-  // 3. Restart the typewriter headline
-  runHeroTypewriter();
+    const delay = Number(card.getAttribute('data-delay') || 0);
+    const timer = setTimeout(() => {
+      card.classList.add('is-revealed');
+    }, delay);
+    showcaseTimers.push(timer);
+  });
+
+  // 2. Staggered editorial caption reveal
+  sectionEl.querySelectorAll('.showcase-caption-enter').forEach((cap) => {
+    const delay = Number(cap.getAttribute('data-delay') || 350);
+    const timer = setTimeout(() => {
+      cap.classList.add('is-revealed');
+    }, delay);
+    showcaseTimers.push(timer);
+  });
 }
 
-let heroObserver = null;
-let heroLeftViewport = false;
-function initHeroScrollReplay() {
-  if (heroObserver) heroObserver.disconnect();
-  heroLeftViewport = false;
+function resetShowcaseAnimation(sectionEl) {
+  showcaseTimers.forEach((t) => clearTimeout(t));
+  showcaseTimers = [];
+  sectionEl.querySelectorAll('.showcase-card-enter, .showcase-caption-enter').forEach((el) => {
+    el.classList.remove('is-revealed');
+  });
+}
 
-  const heroEl = document.getElementById('hero-section');
-  if (!heroEl || state.activeView !== 'home') return;
+function initShowcaseMotion() {
+  if (showcaseObserver) showcaseObserver.disconnect();
+  const sectionEl = document.getElementById('showcase-section');
+  if (!sectionEl || state.activeView !== 'home') return;
 
-  heroObserver = new IntersectionObserver(
+  // Replay every time the user enters from above (scroll down) OR below (scroll up), plus on refresh
+  showcaseObserver = new IntersectionObserver(
     (entries) => {
       entries.forEach((entry) => {
-        if (!entry.isIntersecting) {
-          // User scrolled down past the hero section
-          heroLeftViewport = true;
-        } else if (heroLeftViewport) {
-          // User scrolled back up into the hero section
-          heroLeftViewport = false;
-          replayHeroAnimations();
+        if (entry.isIntersecting) {
+          playShowcaseAnimation(sectionEl);
+        } else {
+          resetShowcaseAnimation(sectionEl);
         }
       });
     },
-    { threshold: 0.25 }
+    { threshold: 0.18 }
   );
 
-  heroObserver.observe(heroEl);
+  showcaseObserver.observe(sectionEl);
 }
+
+// Continuous scroll-linked parallax for watermark & outer columns
+let showcaseParallaxTicking = false;
+window.addEventListener(
+  'scroll',
+  () => {
+    if (showcaseParallaxTicking) return;
+    showcaseParallaxTicking = true;
+    requestAnimationFrame(() => {
+      const sectionEl = document.getElementById('showcase-section');
+      if (sectionEl && state.activeView === 'home') {
+        const rect = sectionEl.getBoundingClientRect();
+        const vh = window.innerHeight || 800;
+        if (rect.bottom > 0 && rect.top < vh) {
+          // Progress from -1 (entering bottom) to +1 (exiting top)
+          const progress = ((vh * 0.5 - (rect.top + rect.height * 0.5)) / vh) * 2;
+          const watermark = document.getElementById('showcase-watermark-text');
+          const leftCol = document.getElementById('showcase-col-left');
+          const rightCol = document.getElementById('showcase-col-right');
+
+          if (watermark) {
+            watermark.style.transform = `translate3d(${progress * -38}px, 0, 0)`;
+          }
+          if (leftCol && window.innerWidth >= 768) {
+            leftCol.style.transform = `translate3d(0, ${progress * -18}px, 0)`;
+          }
+          if (rightCol && window.innerWidth >= 768) {
+            rightCol.style.transform = `translate3d(0, ${progress * 18}px, 0)`;
+          }
+        }
+      }
+      showcaseParallaxTicking = false;
+    });
+  },
+  { passive: true }
+);
 
 let scrollObserver = null;
 function initScrollReveals() {
@@ -3117,8 +3126,7 @@ function render() {
   renderModals();
   if (window.lucide) window.lucide.createIcons();
   initScrollReveals();
-  runHeroTypewriter();
-  initHeroScrollReplay();
+  initShowcaseMotion();
 }
 
 // ============================================================================
