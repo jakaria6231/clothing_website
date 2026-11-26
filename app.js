@@ -1154,7 +1154,7 @@ function renderStorefrontView() {
             : `
           <main class="space-y-5 sm:space-y-7">
             <!-- SECTION 1: HERO BANNER -->
-            <section class="relative rounded-[28px] sm:rounded-[36px] overflow-hidden border shadow-sm pt-10 sm:pt-14 px-5 sm:px-12 pb-0 min-h-[630px] sm:min-h-[710px] flex flex-col justify-between transition-colors duration-300 ${
+            <section id="hero-section" class="relative rounded-[28px] sm:rounded-[36px] overflow-hidden border shadow-sm pt-10 sm:pt-14 px-5 sm:px-12 pb-0 min-h-[630px] sm:min-h-[710px] flex flex-col justify-between transition-colors duration-300 ${
               isDark
                 ? 'bg-gradient-to-b from-[#171920] via-[#121216] to-[#0E0E12] border-white/10'
                 : 'bg-gradient-to-b from-[#CFDBE0] via-[#E5ECEF] to-[#F5F7F8] border-white'
@@ -2966,6 +2966,8 @@ function runHeroTypewriter() {
   if (!target) return;
 
   clearTimeout(typewriterTimeout);
+  target.textContent = '';
+  if (cursor) cursor.classList.remove('hidden');
   let charIndex = 0;
 
   typewriterTimeout = setTimeout(() => {
@@ -2983,6 +2985,104 @@ function runHeroTypewriter() {
     };
     typeNext();
   }, 1450);
+}
+
+function replayHeroAnimations() {
+  const hero = document.getElementById('hero-section');
+  const header = document.querySelector('header');
+  if (!hero) return;
+
+  const isDark = state.theme === 'dark';
+  state.heroAnimPlayed = false;
+
+  // 1. Restart CSS animations on header and hero children
+  const animatedSelectors = [
+    '.animate-nav-drop',
+    '.animate-hero-model',
+    '.animate-hero-left',
+    '.animate-hero-right',
+    '.animate-mask-line-1',
+    '.animate-hero-cta'
+  ];
+
+  if (header) {
+    header.classList.remove('animate-nav-drop');
+    void header.offsetWidth;
+    header.classList.add('animate-nav-drop');
+  }
+
+  // Re-attach animation classes in case they were omitted after first play
+  const modelCol = hero.querySelector('.lg\\:col-span-6');
+  const leftCol = hero.querySelector('.lg\\:col-span-3.order-2');
+  const rightCol = hero.querySelector('.lg\\:col-span-3.order-3');
+  const line1 = hero.querySelector('h1 > span:first-child > span');
+  const ctaRow = hero.querySelector('h1 + div');
+
+  const pairs = [
+    [modelCol, 'animate-hero-model'],
+    [leftCol, 'animate-hero-left'],
+    [rightCol, 'animate-hero-right'],
+    [line1, 'animate-mask-line-1'],
+    [ctaRow, 'animate-hero-cta']
+  ];
+
+  pairs.forEach(([el, cls]) => {
+    if (!el) return;
+    el.classList.remove(cls);
+    void el.offsetWidth;
+    el.classList.add(cls);
+  });
+
+  // 2. Rebuild & restart the Venetian-blind slats on the model image
+  const modelImgWrap = modelCol?.querySelector('.relative');
+  if (modelImgWrap) {
+    const oldBlinds = modelImgWrap.querySelector('.hero-blinds-overlay');
+    if (oldBlinds) oldBlinds.remove();
+
+    const blindsDiv = document.createElement('div');
+    blindsDiv.className = 'hero-blinds-overlay';
+    blindsDiv.setAttribute('aria-hidden', 'true');
+    blindsDiv.innerHTML = [0, 1, 2, 3, 4, 5, 6]
+      .map(
+        (i) =>
+          `<div class="hero-blind-slat ${
+            isDark ? 'bg-[#121216]' : 'bg-[#DCE5E9]'
+          }" style="animation-delay: ${0.32 + i * 0.055}s;"></div>`
+      )
+      .join('');
+    modelImgWrap.appendChild(blindsDiv);
+  }
+
+  // 3. Restart the typewriter headline
+  runHeroTypewriter();
+}
+
+let heroObserver = null;
+let heroLeftViewport = false;
+function initHeroScrollReplay() {
+  if (heroObserver) heroObserver.disconnect();
+  heroLeftViewport = false;
+
+  const heroEl = document.getElementById('hero-section');
+  if (!heroEl || state.activeView !== 'home') return;
+
+  heroObserver = new IntersectionObserver(
+    (entries) => {
+      entries.forEach((entry) => {
+        if (!entry.isIntersecting) {
+          // User scrolled down past the hero section
+          heroLeftViewport = true;
+        } else if (heroLeftViewport) {
+          // User scrolled back up into the hero section
+          heroLeftViewport = false;
+          replayHeroAnimations();
+        }
+      });
+    },
+    { threshold: 0.25 }
+  );
+
+  heroObserver.observe(heroEl);
 }
 
 let scrollObserver = null;
@@ -3018,6 +3118,7 @@ function render() {
   if (window.lucide) window.lucide.createIcons();
   initScrollReveals();
   runHeroTypewriter();
+  initHeroScrollReplay();
 }
 
 // ============================================================================
