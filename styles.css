@@ -233,25 +233,65 @@ body {
 }
 
 /* ==========================================================================
-   LOOKBOOK EXPANDING STRIP HOVER INTERACTIONS
+   LOOKBOOK EXPANDING ACCORDION CAROUSEL (VIDEO-MATCHED ANIMATION)
    ========================================================================== */
 
-.lookbook-card {
-  transition: flex 700ms cubic-bezier(0.16, 1, 0.3, 1), opacity 700ms cubic-bezier(0.16, 1, 0.3, 1);
+.lookbook-strip {
+  display: flex;
+  flex-direction: row;
+  width: 100%;
 }
 
-@media (min-width: 1024px) {
-  .lookbook-strip:hover .lookbook-card {
-    opacity: 0.65;
+.lookbook-card {
+  flex: 1 1 0%;
+  min-width: 0;
+  transition: flex 850ms cubic-bezier(0.65, 0, 0.35, 1);
+  will-change: flex;
+}
+
+.lookbook-card.is-active {
+  flex: 3.6 1 0%;
+}
+
+@media (max-width: 639px) {
+  .lookbook-card {
+    flex: 0.75 1 0%;
   }
-  .lookbook-strip .lookbook-card:hover {
-    flex: 1.85 !important;
-    opacity: 1 !important;
+  .lookbook-card.is-active {
+    flex: 4.2 1 0%;
   }
-  .lookbook-strip .lookbook-card:hover .lookbook-shop-btn {
-    transform: translateY(0) !important;
-    opacity: 1 !important;
-  }
+}
+
+.lookbook-card .lookbook-img {
+  transform: scale(1.06);
+  filter: brightness(0.8);
+  transition:
+    transform 900ms cubic-bezier(0.22, 1, 0.36, 1),
+    filter 700ms ease;
+  will-change: transform, filter;
+}
+
+.lookbook-card.is-active .lookbook-img {
+  transform: scale(1);
+  filter: brightness(1);
+}
+
+.lookbook-card .lookbook-tag,
+.lookbook-card .lookbook-details {
+  opacity: 0;
+  transform: translateY(14px);
+  pointer-events: none;
+  transition:
+    opacity 300ms ease,
+    transform 450ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.lookbook-card.is-active .lookbook-tag,
+.lookbook-card.is-active .lookbook-details {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+  transition-delay: 220ms;
 }
 
 /* ==========================================================================
