@@ -35,7 +35,7 @@
     "featureBannerTitleLine2": "WORKOUT WEAR.",
     "featureBannerSubtext": "Precision-cut technical layers engineered for athletes who train without limits.",
     "featureBannerImage": "https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?auto=format&fit=crop&w=1200&q=85",
-    "catalogTitleLine1": "FRESH FITS FOR YOUR",
+    "catalogTitleLine1": "FRESH FITS FOR YOU",
     "catalogTitleLine2": "NEXT WORKOUT!",
     "catalogSubtitle": "NEW ARRIVAL",
     "lookbookSectionTitle": "SEASONAL LOOKBOOK ARCHIVE",
@@ -74,8 +74,9 @@
       }
     ],
     "whatsappNumber": "8801948388894",
-    "telegramUsername": "rrwear_official",
-    "messengerUsername": "rrwear.official"
+    "instagramUsername": "rrwear_official",
+    "messengerUsername": "rrwear.official",
+    "telegramUsername": "rrwear_official"
   },
   "categories": [
     {
@@ -348,5 +349,5 @@
     "passwordHash": "423d302ba4c801ed08922680213c8a377223804b92316c494c09115abd31cdb1",
     "updatedAt": 1795756919378
   },
-  "updatedAt": 1795817418250
+  "updatedAt": 1795819585436
 }
