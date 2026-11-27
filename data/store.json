@@ -1,0 +1,332 @@
+{
+  "siteSettings": {
+    "brandName": "R&R WEAR",
+    "logoUrl": "",
+    "footerTagline": "Engineered luxury sportswear and technical street silhouettes crafted for relentless movement.",
+    "footerCopyright": "© 2026 R&R WEAR. ALL RIGHTS RESERVED.",
+    "heroTitleLine1": "GEAR UP EVERY SEASON",
+    "heroTitleLine2": "EVERY WORKOUT!",
+    "heroPrimaryBtnText": "SHOP NOW",
+    "heroSecondaryBtnText": "EXPLORE ALL",
+    "heroDescription": "Stay agile without compromising your range of motion. Our technical athletic range is engineered for intense indoor & outdoor training.",
+    "heroImage": "https://images.unsplash.com/photo-1534438327276-14e5300c3a48?auto=format&fit=crop&w=1400&q=85",
+    "heroThumb1": "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&w=300&q=80",
+    "heroThumb2": "https://images.unsplash.com/photo-1556821840-3a63f95609a7?auto=format&fit=crop&w=300&q=80",
+    "heroThumb3": "https://images.unsplash.com/photo-1552374196-1ab2a1c593e8?auto=format&fit=crop&w=300&q=80",
+    "heroVideoPreviewImg": "https://images.unsplash.com/photo-1517836357463-d25dfeac3438?auto=format&fit=crop&w=800&q=80",
+    "heroVideoPreviewTitle": "LOOKBOOK FILM",
+    "showcaseWatermark": "WORKOUT",
+    "showcaseLeftImg": "https://images.unsplash.com/photo-1509942774463-acf339cf87d5?auto=format&fit=crop&w=700&q=80",
+    "showcaseLeftCaption": "Performance-driven gear for athletes—built for summer heat and winter cold.",
+    "showcaseCenterImg": "https://images.unsplash.com/photo-1583454110551-21f2fa2afe61?auto=format&fit=crop&w=900&q=85",
+    "showcaseRightImg": "https://images.unsplash.com/photo-1518310383802-640c2de311b2?auto=format&fit=crop&w=700&q=80",
+    "showcaseRightCaption": "Stay warm, stay fit. Our winter workout wear blends insulation with flexibility to keep you going in the toughest conditions.",
+    "promoSectionTitleLine1": "TOP WORKOUT GEAR FOR",
+    "promoSectionTitleLine2": "PEAK PERFORMANCE!",
+    "promoSectionSubtitle": "Discover the new season collection, designed to empower your workouts all year round.",
+    "promoCard1Title": "TOP WORKOUT GEAR FOR PEAK PERFORMANCE!",
+    "promoCard1Tag": "OUTERWEAR / 26",
+    "promoCard1Image": "https://images.unsplash.com/photo-1552374196-1ab2a1c593e8?auto=format&fit=crop&w=1100&q=85",
+    "promoCard2Title": "LATEST STYLES AND INNOVATIONS IN WORKOUT GEAR",
+    "promoCard2Tag": "TECHNICAL / GEAR",
+    "promoCard2Image": "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&w=1100&q=85",
+    "featureBannerTag": "LEVEL UP",
+    "featureBannerTitleLine1": "WITH THE LATEST IN",
+    "featureBannerTitleLine2": "WORKOUT WEAR.",
+    "featureBannerSubtext": "Precision-cut technical layers engineered for athletes who train without limits.",
+    "featureBannerImage": "https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?auto=format&fit=crop&w=1200&q=85",
+    "catalogTitleLine1": "FRESH FITS FOR YOUR",
+    "catalogTitleLine2": "NEXT WORKOUT!",
+    "catalogSubtitle": "NEW ARRIVAL",
+    "lookbookSectionTitle": "SEASONAL LOOKBOOK ARCHIVE",
+    "lookbookCards": [
+      {
+        "id": "look-1",
+        "title": "DUSK VIOLET LAYERED SET",
+        "tag": "COMPRESSION + JOGGER",
+        "season": "FALL / WINTER 2026",
+        "image": "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&w=900&q=85",
+        "linkedProductId": "prod-1"
+      },
+      {
+        "id": "look-2",
+        "title": "STUDIO ASH FLEECE & SHORT",
+        "tag": "HEAVYWEIGHT FLEECE",
+        "season": "ALL-SEASON 2026",
+        "image": "https://images.unsplash.com/photo-1556821840-3a63f95609a7?auto=format&fit=crop&w=900&q=85",
+        "linkedProductId": "prod-2"
+      },
+      {
+        "id": "look-3",
+        "title": "STEALTH OBSIDIAN TECH KIT",
+        "tag": "THERMAL SHELL + TIGHTS",
+        "season": "WINTER PERFORMANCE",
+        "image": "https://images.unsplash.com/photo-1583454110551-21f2fa2afe61?auto=format&fit=crop&w=900&q=85",
+        "linkedProductId": "prod-5"
+      },
+      {
+        "id": "look-4",
+        "title": "CARGO HIGH RIB JOGGER",
+        "tag": "HOODIE + CRIMSON CARGO",
+        "season": "FALL / WINTER 2026",
+        "image": "https://images.unsplash.com/photo-1552374196-1ab2a1c593e8?auto=format&fit=crop&w=900&q=85",
+        "linkedProductId": "prod-3"
+      }
+    ],
+    "whatsappNumber": "8801700000000",
+    "telegramUsername": "rrwear_official",
+    "messengerUsername": "rrwear.official"
+  },
+  "categories": [
+    {
+      "id": "cat-men",
+      "name": "MEN",
+      "description": "Technical training layers, heavyweight hoodies, and tapered performance joggers.",
+      "image": "https://images.unsplash.com/photo-1583454110551-21f2fa2afe61?auto=format&fit=crop&w=900&q=80",
+      "banner": ""
+    },
+    {
+      "id": "cat-women",
+      "name": "WOMEN",
+      "description": "Sculpted seamless compression sets, cropped shells, and studio essentials.",
+      "image": "https://images.unsplash.com/photo-1518310383802-640c2de311b2?auto=format&fit=crop&w=900&q=80",
+      "banner": ""
+    },
+    {
+      "id": "cat-trending",
+      "name": "TRENDING",
+      "description": "Most-wanted seasonal drops and limited streetwear collaborations.",
+      "image": "https://images.unsplash.com/photo-1523398002811-999ca8dec234?auto=format&fit=crop&w=900&q=80",
+      "banner": ""
+    },
+    {
+      "id": "cat-seasonal",
+      "name": "SEASONAL",
+      "description": "All-weather windbreakers, thermal fleeces, and breathable summer tanks.",
+      "image": "https://images.unsplash.com/photo-1556821840-3a63f95609a7?auto=format&fit=crop&w=900&q=80",
+      "banner": ""
+    },
+    {
+      "id": "cat-accessories",
+      "name": "ACCESSORIES",
+      "description": "Tactical crossbody bags, performance caps, and compression sleeves.",
+      "image": "https://images.unsplash.com/photo-1553062407-98eeb64c6a62?auto=format&fit=crop&w=900&q=80",
+      "banner": ""
+    }
+  ],
+  "products": [
+    {
+      "id": "prod-8",
+      "name": "Tactical Crossbody Sling Rig",
+      "price": 85,
+      "categoryId": "cat-accessories",
+      "visibility": "published",
+      "description": "Weatherproof ballistic Cordura chest & crossbody sling bag with quick-release magnetic buckle and padded phone sleeve.",
+      "images": [
+        "https://images.unsplash.com/photo-1553062407-98eeb64c6a62?auto=format&fit=crop&w=900&q=85"
+      ],
+      "videos": [],
+      "specifications": [
+        {
+          "label": "Material",
+          "value": "1000D Ballistic Cordura"
+        },
+        {
+          "label": "Hardware",
+          "value": "Fidlock Magnetic Buckle"
+        }
+      ],
+      "createdAt": 1795756880175
+    },
+    {
+      "id": "prod-7",
+      "name": "Sculpt Studio Ribbed Set",
+      "price": 116,
+      "categoryId": "cat-women",
+      "visibility": "published",
+      "description": "High-waisted seamless compression leggings paired with a long-sleeve sculpted zip crop top in warm taupe.",
+      "images": [
+        "https://images.unsplash.com/photo-1518310383802-640c2de311b2?auto=format&fit=crop&w=900&q=85"
+      ],
+      "videos": [],
+      "specifications": [
+        {
+          "label": "Support",
+          "value": "High-Compression Sculpt"
+        },
+        {
+          "label": "Fabric",
+          "value": "ButterSoft Seamless Knit"
+        }
+      ],
+      "createdAt": 1795756870175
+    },
+    {
+      "id": "prod-6",
+      "name": "Woodland Camo Tech Jacket",
+      "price": 155,
+      "categoryId": "cat-trending",
+      "visibility": "published",
+      "description": "Limited-edition tactical woodland camo windbreaker featuring storm hood, concealed zip pockets, and elastic drawcord hem.",
+      "images": [
+        "https://images.unsplash.com/photo-1523398002811-999ca8dec234?auto=format&fit=crop&w=900&q=85"
+      ],
+      "videos": [],
+      "specifications": [
+        {
+          "label": "Edition",
+          "value": "Limited Seasonal Drop"
+        },
+        {
+          "label": "Lining",
+          "value": "Breathable Micro-Mesh"
+        }
+      ],
+      "createdAt": 1795756860175
+    },
+    {
+      "id": "prod-5",
+      "name": "Obsidian Compression Tee",
+      "price": 88,
+      "categoryId": "cat-men",
+      "visibility": "published",
+      "description": "Second-skin moisture-wicking training tee in deep obsidian with anti-odor silver-ion treatment and flatlock seams.",
+      "images": [
+        "https://images.unsplash.com/photo-1583454110551-21f2fa2afe61?auto=format&fit=crop&w=900&q=85"
+      ],
+      "videos": [],
+      "specifications": [
+        {
+          "label": "Technology",
+          "value": "DryCore Silver-Ion Weave"
+        },
+        {
+          "label": "Stretch",
+          "value": "360° Recovery Stretch"
+        }
+      ],
+      "createdAt": 1795756850175
+    },
+    {
+      "id": "prod-4",
+      "name": "Aero Silver Quarter-Zip",
+      "price": 118,
+      "categoryId": "cat-men",
+      "visibility": "published",
+      "description": "Ultra-lightweight wind-resistant quarter-zip anorak in reflective mist grey with laser-perforated underarm ventilation zones.",
+      "images": [
+        "https://images.unsplash.com/photo-1509942774463-acf339cf87d5?auto=format&fit=crop&w=900&q=85"
+      ],
+      "videos": [],
+      "specifications": [
+        {
+          "label": "Fabric",
+          "value": "88% Polyamide, 12% Elastane"
+        },
+        {
+          "label": "Ventilation",
+          "value": "Laser-Cut Mesh Panels"
+        },
+        {
+          "label": "Fit",
+          "value": "True to Size"
+        }
+      ],
+      "createdAt": 1795756840175
+    },
+    {
+      "id": "prod-3",
+      "name": "Stealth Olive Cargo Kit",
+      "price": 160,
+      "categoryId": "cat-seasonal",
+      "visibility": "published",
+      "description": "Water-repellent olive technical shell jacket and articulated cargo joggers built for outdoor cold-weather sessions and urban mobility.",
+      "images": [
+        "https://images.unsplash.com/photo-1552374196-1ab2a1c593e8?auto=format&fit=crop&w=900&q=85",
+        "https://images.unsplash.com/photo-1523398002811-999ca8dec234?auto=format&fit=crop&w=900&q=85"
+      ],
+      "videos": [],
+      "specifications": [
+        {
+          "label": "Shell",
+          "value": "DWR Coated Ripstop Nylon"
+        },
+        {
+          "label": "Zippers",
+          "value": "YKK AquaGuard Matte"
+        },
+        {
+          "label": "Fit",
+          "value": "Tapered Articulated"
+        }
+      ],
+      "createdAt": 1795756830175
+    },
+    {
+      "id": "prod-2",
+      "name": "Desert Sand Heavy Hoodie",
+      "price": 128,
+      "categoryId": "cat-trending",
+      "visibility": "published",
+      "description": "Garment-dyed desert sand heavyweight pullover paired with breathable mesh training shorts. Features dropped shoulders and tonal R&R emblem embroidery.",
+      "images": [
+        "https://images.unsplash.com/photo-1556821840-3a63f95609a7?auto=format&fit=crop&w=900&q=85",
+        "https://images.unsplash.com/photo-1509942774463-acf339cf87d5?auto=format&fit=crop&w=900&q=85"
+      ],
+      "videos": [],
+      "specifications": [
+        {
+          "label": "Material",
+          "value": "100% Organic French Terry"
+        },
+        {
+          "label": "Weight",
+          "value": "460 GSM Heavyweight"
+        },
+        {
+          "label": "Fit",
+          "value": "Boxy Street Fit"
+        }
+      ],
+      "createdAt": 1795756820175
+    },
+    {
+      "id": "prod-1",
+      "name": "R&R x Equinox Lycra Set",
+      "price": 160,
+      "categoryId": "cat-men",
+      "visibility": "published",
+      "description": "Engineered with 4-way stretch technical Lycra and matte-black brushed fleece. Designed for high-output conditioning and seamless street-to-gym transitions.",
+      "images": [
+        "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&w=900&q=85",
+        "https://images.unsplash.com/photo-1552374196-1ab2a1c593e8?auto=format&fit=crop&w=900&q=85"
+      ],
+      "videos": [],
+      "specifications": [
+        {
+          "label": "Fabric",
+          "value": "420GSM Cotton-Lycra Blend"
+        },
+        {
+          "label": "Fit",
+          "value": "Athletic Relaxed"
+        },
+        {
+          "label": "Weather Rating",
+          "value": "All-Season Breathable"
+        },
+        {
+          "label": "Care",
+          "value": "Cold Wash, Hang Dry"
+        }
+      ],
+      "createdAt": 1795756810175
+    }
+  ],
+  "ownerAuthRecord": {
+    "email": "owner@rrwear.com",
+    "passwordHash": "423d302ba4c801ed08922680213c8a377223804b92316c494c09115abd31cdb1",
+    "updatedAt": 1795756919378
+  },
+  "updatedAt": 1795767727878
+}
