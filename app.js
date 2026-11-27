@@ -1538,73 +1538,80 @@ function renderStorefrontView() {
             <section id="catalog" class="rounded-[28px] sm:rounded-[36px] border p-6 sm:p-12 transition-colors duration-300 ${
               isDark ? 'bg-[#121216] border-white/10' : 'bg-[#F4F5F7] border-white'
             }">
-              <div class="scroll-reveal reveal-rise flex flex-col md:flex-row items-center justify-between gap-4 mb-7">
-                <span class="font-ui text-[10px] font-bold uppercase tracking-[0.16em] ${
-                  isDark ? 'text-cyan-400' : 'text-[#6E7378]'
-                }">
-                  ${escapeHtml(s.catalogSubtitle || 'NEW ARRIVAL')}
-                </span>
-                <h2 class="font-display text-2xl sm:text-4xl font-extrabold uppercase tracking-[-0.035em] leading-[1.03] text-center ${
-                  isDark ? 'text-white' : 'text-[#0A0A0A]'
-                }">
-                  ${escapeHtml(s.catalogTitleLine1 || 'FRESH FITS FOR YOUR')}<br />${escapeHtml(s.catalogTitleLine2 || 'NEXT WORKOUT!')}
-                </h2>
-                <button data-action="reset-catalog" class="font-ui text-[10px] font-bold uppercase tracking-[0.16em] transition-colors ${
-                  isDark ? 'text-zinc-400 hover:text-white' : 'text-[#6E7378] hover:text-[#0A0A0A]'
-                }">
-                  ALL GEAR (${publishedProducts.length})
-                </button>
-              </div>
-
-              <!-- Category Filter Pills + Search Input -->
-              <div class="flex flex-col sm:flex-row items-center justify-between gap-4 mb-8">
-                <div class="flex flex-wrap items-center justify-center gap-2">
-                  <button data-action="set-cat-filter" data-cat="ALL" class="px-4 py-2 rounded-full font-ui text-[11px] font-bold uppercase tracking-[0.08em] transition-all ${
-                    state.selectedCategoryFilter === 'ALL'
-                      ? isDark
-                        ? 'bg-white text-[#09090B] shadow-sm'
-                        : 'bg-[#0A0A0A] text-white shadow-sm'
-                      : isDark
-                      ? 'bg-[#1B1B21] text-zinc-300 hover:bg-white/10 border border-white/10'
-                      : 'bg-white text-[#4A5056] hover:bg-black/5 border border-black/5'
+              <div class="catalog-header-trigger">
+                <div class="flex flex-col md:flex-row items-center justify-between gap-4 mb-7">
+                  <span class="catalog-meta-left font-ui text-[10px] font-bold uppercase tracking-[0.16em] ${
+                    isDark ? 'text-cyan-400' : 'text-[#6E7378]'
                   }">
-                    ALL (${publishedProducts.length})
+                    ${escapeHtml(s.catalogSubtitle || 'NEW ARRIVAL')}
+                  </span>
+                  <h2 class="font-display text-2xl sm:text-4xl font-extrabold uppercase tracking-[-0.035em] leading-[1.03] text-center ${
+                    isDark ? 'text-white' : 'text-[#0A0A0A]'
+                  }">
+                    <span class="block overflow-hidden pb-0.5">
+                      <span class="catalog-head-line catalog-head-line-1 block">${escapeHtml(s.catalogTitleLine1 || 'FRESH FITS FOR YOUR')}</span>
+                    </span>
+                    <span class="block overflow-hidden pb-0.5">
+                      <span class="catalog-head-line catalog-head-line-2 block">${escapeHtml(s.catalogTitleLine2 || 'NEXT WORKOUT!')}</span>
+                    </span>
+                  </h2>
+                  <button data-action="reset-catalog" class="catalog-meta-right font-ui text-[10px] font-bold uppercase tracking-[0.16em] transition-colors ${
+                    isDark ? 'text-zinc-400 hover:text-white' : 'text-[#6E7378] hover:text-[#0A0A0A]'
+                  }">
+                    ALL GEAR (${publishedProducts.length})
                   </button>
-                  ${state.categories
-                    .map((cat) => {
-                      const count = publishedProducts.filter((p) => p.categoryId === cat.id).length;
-                      return `
-                      <button data-action="set-cat-filter" data-cat="${escapeHtml(cat.id)}" class="px-4 py-2 rounded-full font-ui text-[11px] font-bold uppercase tracking-[0.08em] transition-all ${
-                        state.selectedCategoryFilter === cat.id
-                          ? isDark
-                            ? 'bg-white text-[#09090B] shadow-sm'
-                            : 'bg-[#0A0A0A] text-white shadow-sm'
-                          : isDark
-                          ? 'bg-[#1B1B21] text-zinc-300 hover:bg-white/10 border border-white/10'
-                          : 'bg-white text-[#4A5056] hover:bg-black/5 border border-black/5'
-                      }">
-                        ${escapeHtml(cat.name)} (${count})
-                      </button>
-                    `;
-                    })
-                    .join('')}
                 </div>
 
-                <div class="relative w-full sm:w-64">
-                  <i data-lucide="search" class="w-3.5 h-3.5 absolute left-3.5 top-1/2 -translate-y-1/2 ${
-                    isDark ? 'text-zinc-400' : 'text-[#6E7378]'
-                  }"></i>
-                  <input
-                    id="store-search-input"
-                    type="text"
-                    value="${escapeHtml(state.searchQuery)}"
-                    placeholder="Search gear..."
-                    class="w-full rounded-full pl-9 pr-4 py-2 text-xs focus:outline-none transition-colors border ${
-                      isDark
-                        ? 'bg-[#1B1B21] border-white/10 text-white placeholder:text-zinc-500 focus:border-cyan-400'
-                        : 'bg-white border-black/10 text-[#0A0A0A] placeholder:text-[#8C939A] focus:border-[#0A0A0A]'
-                    }"
-                  />
+                <!-- Category Filter Pills + Search Input -->
+                <div class="catalog-controls-reveal flex flex-col sm:flex-row items-center justify-between gap-4 mb-8">
+                  <div class="flex flex-wrap items-center justify-center gap-2">
+                    <button data-action="set-cat-filter" data-cat="ALL" class="px-4 py-2 rounded-full font-ui text-[11px] font-bold uppercase tracking-[0.08em] transition-all ${
+                      state.selectedCategoryFilter === 'ALL'
+                        ? isDark
+                          ? 'bg-white text-[#09090B] shadow-sm'
+                          : 'bg-[#0A0A0A] text-white shadow-sm'
+                        : isDark
+                        ? 'bg-[#1B1B21] text-zinc-300 hover:bg-white/10 border border-white/10'
+                        : 'bg-white text-[#4A5056] hover:bg-black/5 border border-black/5'
+                    }">
+                      ALL (${publishedProducts.length})
+                    </button>
+                    ${state.categories
+                      .map((cat) => {
+                        const count = publishedProducts.filter((p) => p.categoryId === cat.id).length;
+                        return `
+                        <button data-action="set-cat-filter" data-cat="${escapeHtml(cat.id)}" class="px-4 py-2 rounded-full font-ui text-[11px] font-bold uppercase tracking-[0.08em] transition-all ${
+                          state.selectedCategoryFilter === cat.id
+                            ? isDark
+                              ? 'bg-white text-[#09090B] shadow-sm'
+                              : 'bg-[#0A0A0A] text-white shadow-sm'
+                            : isDark
+                            ? 'bg-[#1B1B21] text-zinc-300 hover:bg-white/10 border border-white/10'
+                            : 'bg-white text-[#4A5056] hover:bg-black/5 border border-black/5'
+                        }">
+                          ${escapeHtml(cat.name)} (${count})
+                        </button>
+                      `;
+                      })
+                      .join('')}
+                  </div>
+
+                  <div class="relative w-full sm:w-64">
+                    <i data-lucide="search" class="w-3.5 h-3.5 absolute left-3.5 top-1/2 -translate-y-1/2 ${
+                      isDark ? 'text-zinc-400' : 'text-[#6E7378]'
+                    }"></i>
+                    <input
+                      id="store-search-input"
+                      type="text"
+                      value="${escapeHtml(state.searchQuery)}"
+                      placeholder="Search gear..."
+                      class="w-full rounded-full pl-9 pr-4 py-2 text-xs focus:outline-none transition-colors border ${
+                        isDark
+                          ? 'bg-[#1B1B21] border-white/10 text-white placeholder:text-zinc-500 focus:border-cyan-400'
+                          : 'bg-white border-black/10 text-[#0A0A0A] placeholder:text-[#8C939A] focus:border-[#0A0A0A]'
+                      }"
+                    />
+                  </div>
                 </div>
               </div>
 
@@ -1613,17 +1620,11 @@ function renderStorefrontView() {
                 ${renderCatalogGridHtml(filteredStoreProducts)}
               </div>
 
-              <div class="mt-9 flex items-center justify-center gap-1.5">
-                <button data-action="reset-catalog" class="font-ui text-[11px] font-bold uppercase tracking-[0.1em] px-6 py-3 rounded-full transition-all shadow-sm ${
-                  isDark ? 'bg-white text-[#09090B] hover:bg-zinc-200' : 'bg-[#0A0A0A] text-white hover:bg-[#272A2E]'
-                }">
-                  SEE ALL GEAR
-                </button>
-                <button data-action="reset-catalog" class="w-10 h-10 rounded-full flex items-center justify-center transition-all shadow-sm ${
-                  isDark ? 'bg-white text-[#09090B] hover:bg-zinc-200' : 'bg-[#0A0A0A] text-white hover:bg-[#272A2E]'
-                }" aria-label="See all gear">
-                  <i data-lucide="arrow-up-right" class="w-4 h-4"></i>
-                </button>
+              <!-- Bottom SHOP ALL CTA (keep your existing button(s) inside .catalog-cta-motion) -->
+              <div class="catalog-cta-slot mt-9">
+                <div class="catalog-cta-motion flex items-center justify-center gap-1.5">
+                  <!-- Keep your existing SHOP ALL & arrow button HTML here unchanged -->
+                </div>
               </div>
             </section>
 
@@ -1782,16 +1783,18 @@ function renderCatalogGridHtml(filteredStoreProducts) {
   }
   return `
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-      ${filteredStoreProducts
-        .map(
-          (product, index) => `
-        <div class="scroll-reveal reveal-rise" style="transition-delay: ${(index % 4) * 85}ms;">
-          ${renderProductCardHtml(product)}
+  ${filteredStoreProducts
+    .map(
+      (prod, idx) => `
+      <div class="catalog-card-slot" data-card-index="${idx}">
+        <div class="catalog-card-motion">
+          ${renderProductCardHtml(prod)}
         </div>
-      `
-        )
-        .join('')}
-    </div>
+      </div>
+    `
+    )
+    .join('')}
+</div>
   `;
 }
 
@@ -3549,6 +3552,65 @@ function renderPromoSlices(imageUrl, altText, baseDelay = 0, sliceCount = 5) {
   }).join('');
 }
 
+let catalogWaveObserver = null;
+let catalogResizeHandler = null;
+
+function applyCatalogColumnDelays() {
+  const catalogEl = document.getElementById('catalog');
+  if (!catalogEl) return;
+  const cols = window.innerWidth >= 1024 ? 4 : window.innerWidth >= 640 ? 2 : 1;
+  catalogEl.querySelectorAll('.catalog-card-slot').forEach((slot, idx) => {
+    slot.style.setProperty('--card-col', String(idx % cols));
+  });
+}
+
+function initCatalogWaveReveal() {
+  if (catalogWaveObserver) {
+    catalogWaveObserver.disconnect();
+    catalogWaveObserver = null;
+  }
+  if (catalogResizeHandler) {
+    window.removeEventListener('resize', catalogResizeHandler);
+    catalogResizeHandler = null;
+  }
+
+  const catalogEl = document.getElementById('catalog');
+  if (!catalogEl) return;
+
+  applyCatalogColumnDelays();
+  catalogResizeHandler = () => applyCatalogColumnDelays();
+  window.addEventListener('resize', catalogResizeHandler, { passive: true });
+
+  catalogWaveObserver = new IntersectionObserver(
+    (entries) => {
+      entries.forEach((entry) => {
+        const el = entry.target;
+        if (el.classList.contains('catalog-header-trigger')) {
+          el.classList.toggle('is-catalog-head-visible', entry.isIntersecting);
+        } else if (el.classList.contains('catalog-card-slot')) {
+          el.classList.toggle('is-card-visible', entry.isIntersecting);
+        } else if (el.classList.contains('catalog-cta-slot')) {
+          el.classList.toggle('is-cta-visible', entry.isIntersecting);
+        }
+      });
+    },
+    {
+      threshold: 0.12,
+      rootMargin: '0px 0px -45px 0px'
+    }
+  );
+
+  const headerTrigger = catalogEl.querySelector('.catalog-header-trigger');
+  if (headerTrigger) catalogWaveObserver.observe(headerTrigger);
+
+  catalogEl.querySelectorAll('.catalog-card-slot').forEach((slot) => {
+    catalogWaveObserver.observe(slot);
+  });
+
+  const ctaSlot = catalogEl.querySelector('.catalog-cta-slot');
+  if (ctaSlot) catalogWaveObserver.observe(ctaSlot);
+}
+
 function render() {
   const root = document.getElementById('app');
   if (!root) return;
@@ -3568,6 +3630,7 @@ function render() {
   initShowcaseMotion();
   initPromoMotion();
   initFeatureBannerMotion();
+  initCatalogWaveReveal();
 }
 
 // ============================================================================
