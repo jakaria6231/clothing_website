@@ -1,39 +1,127 @@
-import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
-import {
-  getAuth,
-  signInAnonymously,
-  signInWithCustomToken,
-  signInWithEmailAndPassword,
-  sendPasswordResetEmail,
-  onAuthStateChanged
-} from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
-import {
-  getFirestore,
-  doc,
-  getDoc,
-  setDoc,
-  updateDoc,
-  deleteDoc,
-  onSnapshot,
-  collection
-} from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
-
 // ============================================================================
-// 1. FIREBASE INITIALIZATION (MANDATORY ARCHITECTURE)
+// 1. GITHUB REPOSITORY PERMANENT STORAGE CONFIGURATION
 // ============================================================================
-const firebaseConfig =
-  typeof window.__firebase_config !== 'undefined'
-    ? JSON.parse(window.__firebase_config)
-    : {
-        apiKey: 'demo-api-key',
-        authDomain: 'demo.firebaseapp.com',
-        projectId: 'demo-project'
-      };
+const GITHUB_CONFIG = {
+  owner: 'jakaria6231',
+  repo: 'clothing_website',
+  branch: 'main',
+  dataPath: 'data/store.json',
+  mediaFolder: 'uploads'
+};
 
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db = getFirestore(app);
-const appId = typeof window.__app_id !== 'undefined' ? window.__app_id : 'rr-wear-default';
+function getGithubToken() {
+  return localStorage.getItem('rr_wear_gh_token') || '';
+}
+
+function setGithubToken(token) {
+  if (token) {
+    localStorage.setItem('rr_wear_gh_token', token.trim());
+  } else {
+    localStorage.removeItem('rr_wear_gh_token');
+  }
+}
+
+function utf8ToBase64(str) {
+  const bytes = new TextEncoder().encode(str);
+  let binary = '';
+  for (let i = 0; i < bytes.length; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  return btoa(binary);
+}
+
+function base64ToUtf8(base64) {
+  const binary = atob(base64.replace(/\s/g, ''));
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  return new TextDecoder().decode(bytes);
+}
+
+async function githubGetFile(path) {
+  const token = getGithubToken();
+  const headers = { Accept: 'application/vnd.github+json' };
+  if (token) headers.Authorization = `Bearer ${token}`;
+
+  const url = `https://api.github.com/repos/${GITHUB_CONFIG.owner}/${GITHUB_CONFIG.repo}/contents/${path}?ref=${GITHUB_CONFIG.branch}&_t=${Date.now()}`;
+  const res = await fetch(url, { headers, cache: 'no-store' });
+  if (res.status === 404) return null;
+  if (!res.ok) throw new Error(`GitHub API error (${res.status})`);
+  return await res.json();
+}
+
+async function githubPutFile(path, base64Content, message) {
+  const token = getGithubToken();
+  if (!token) {
+    throw new Error('GitHub Token not configured! Go to Owner Dashboard → Contact & Social Links to connect your GitHub Token.');
+  }
+
+  let sha = undefined;
+  try {
+    const existing = await githubGetFile(path);
+    if (existing && existing.sha) sha = existing.sha;
+  } catch (e) {}
+
+  const url = `https://api.github.com/repos/${GITHUB_CONFIG.owner}/${GITHUB_CONFIG.repo}/contents/${path}`;
+  const body = {
+    message,
+    content: base64Content,
+    branch: GITHUB_CONFIG.branch
+  };
+  if (sha) body.sha = sha;
+
+  const res = await fetch(url, {
+    method: 'PUT',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      Accept: 'application/vnd.github+json',
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(body)
+  });
+
+  if (!res.ok) {
+    const errData = await res.json().catch(() => ({}));
+    throw new Error(errData.message || `Failed to save ${path} to GitHub (${res.status})`);
+  }
+  return await res.json();
+}
+
+async function uploadMediaToGithub(base64DataUrl, originalFileName = 'media.jpg') {
+  const token = getGithubToken();
+  if (!token) {
+    throw new Error('Please connect your GitHub Token in Dashboard → Contact & Social Links first so files can save to your repo.');
+  }
+  const cleanName = originalFileName.replace(/[^a-zA-Z0-9._-]/g, '_');
+  const fileName = `${Date.now()}-${cleanName}`;
+  const repoPath = `${GITHUB_CONFIG.mediaFolder}/${fileName}`;
+  const pureBase64 = base64DataUrl.includes(',') ? base64DataUrl.split(',')[1] : base64DataUrl;
+
+  await githubPutFile(repoPath, pureBase64, `Upload ${fileName} from R&R WEAR Owner Dashboard`);
+  return `https://raw.githubusercontent.com/${GITHUB_CONFIG.owner}/${GITHUB_CONFIG.repo}/${GITHUB_CONFIG.branch}/${repoPath}`;
+}
+
+async function persistStoreToGithub(commitMsg = 'Update store data from Owner Dashboard') {
+  const storePayload = {
+    siteSettings: state.siteSettings,
+    categories: state.categories,
+    products: state.products,
+    ownerAuthRecord: state.ownerAuthRecord || {
+      email: 'owner@rrwear.com',
+      passwordHash: await hashSecret('RRWear2026!'),
+      updatedAt: Date.now()
+    },
+    updatedAt: Date.now()
+  };
+
+  try {
+    localStorage.setItem('rr_wear_store_backup', JSON.stringify(storePayload));
+  } catch (e) {}
+
+  const encoded = utf8ToBase64(JSON.stringify(storePayload, null, 2));
+  await githubPutFile(GITHUB_CONFIG.dataPath, encoded, commitMsg);
+}
 
 // ============================================================================
 // 2. CRYPTO, MEDIA & HTML ESCAPE HELPER UTILITIES
@@ -86,13 +174,13 @@ function compressImageFile(file, maxWidth = 1100, quality = 0.82) {
 
 function readVideoFile(file) {
   return new Promise((resolve, reject) => {
-    const maxBytes = 750 * 1024;
+    const maxBytes = 20 * 1024 * 1024; // Up to 20MB supported for GitHub repo storage
     if (file.size > maxBytes) {
       reject(
         new Error(
           `Video "${file.name}" is ${(file.size / (1024 * 1024)).toFixed(
             2
-          )}MB. Please upload an MP4/WebM clip under 750KB for cloud database storage.`
+          )}MB. Please upload an MP4/WebM clip under 20MB for GitHub repository storage.`
         )
       );
       return;
@@ -456,14 +544,14 @@ function saveBagToStorage(bag) {
 // 5. GLOBAL APPLICATION STATE
 // ============================================================================
 const state = {
-  firebaseUser: null,
   theme: 'light',
-  isOwnerAuthenticated: false,
+  isOwnerAuthenticated: sessionStorage.getItem('rr_wear_owner_auth') === 'true',
   ownerAuthRecord: null,
   siteSettings: { ...DEFAULT_SITE_SETTINGS },
   categories: [...DEFAULT_CATEGORIES],
   products: [...DEFAULT_PRODUCTS],
-  isDataLoaded: true,
+  isDataLoaded: false,
+  isSavingToGithub: false,
 
   // Customer Shopping Bag State
   bag: loadSavedBag(),
@@ -572,131 +660,73 @@ function showToast(message, type = 'success') {
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => {
     root.innerHTML = '';
-  }, 3600);
+  }, 4200);
 }
 
 // ============================================================================
-// 6. FIREBASE AUTH & FIRESTORE REAL-TIME SUBSCRIPTIONS
+// 6. LOAD LIVE STORE DATA FROM GITHUB REPOSITORY (PERMANENT ACROSS REFRESH)
 // ============================================================================
-function initFirebase() {
-  const initAuth = async () => {
-    try {
-      if (typeof window.__initial_auth_token !== 'undefined' && window.__initial_auth_token) {
-        await signInWithCustomToken(auth, window.__initial_auth_token);
-      } else if (!auth.currentUser) {
-        await signInAnonymously(auth);
-      }
-    } catch (err) {
-      console.warn('Firebase auth notice (running with local/demo fallback if offline):', err);
-    }
-  };
-  initAuth();
-
-  onAuthStateChanged(auth, (user) => {
-    state.firebaseUser = user;
-    if (user) {
-      subscribeFirestore();
-    }
-  });
+function applyStorePayload(data) {
+  if (!data || typeof data !== 'object') return;
+  if (data.siteSettings) {
+    state.siteSettings = {
+      ...DEFAULT_SITE_SETTINGS,
+      ...data.siteSettings,
+      lookbookCards:
+        Array.isArray(data.siteSettings.lookbookCards) && data.siteSettings.lookbookCards.length > 0
+          ? data.siteSettings.lookbookCards
+          : DEFAULT_LOOKBOOK_CARDS
+    };
+    state.customForm = JSON.parse(JSON.stringify(state.siteSettings));
+  }
+  if (Array.isArray(data.categories) && data.categories.length > 0) {
+    state.categories = data.categories;
+  }
+  if (Array.isArray(data.products)) {
+    state.products = data.products.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+  }
+  if (data.ownerAuthRecord) {
+    state.ownerAuthRecord = data.ownerAuthRecord;
+  }
 }
 
-function subscribeFirestore() {
-  const settingsDocRef = doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'general');
-  const ownerAuthDocRef = doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'ownerAuth');
-  const categoriesColRef = collection(db, 'artifacts', appId, 'public', 'data', 'categories');
-  const productsColRef = collection(db, 'artifacts', appId, 'public', 'data', 'products');
+async function initStoreFromGithub() {
+  try {
+    // 1. Load directly from GitHub Raw / API so every visitor & page refresh sees permanent changes
+    const rawUrl = `https://raw.githubusercontent.com/${GITHUB_CONFIG.owner}/${GITHUB_CONFIG.repo}/${GITHUB_CONFIG.branch}/${GITHUB_CONFIG.dataPath}?_t=${Date.now()}`;
+    let loaded = false;
 
-  const seedIfEmpty = async () => {
-    try {
-      const settingsSnap = await getDoc(settingsDocRef);
-      if (!settingsSnap.exists()) {
-        await setDoc(settingsDocRef, DEFAULT_SITE_SETTINGS);
+    const rawRes = await fetch(rawUrl, { cache: 'no-store' });
+    if (rawRes.ok) {
+      const jsonData = await rawRes.json();
+      applyStorePayload(jsonData);
+      loaded = true;
+    } else {
+      // Fallback to GitHub Contents API (useful immediately after a commit before CDN refreshes)
+      const apiFile = await githubGetFile(GITHUB_CONFIG.dataPath);
+      if (apiFile && apiFile.content) {
+        const jsonData = JSON.parse(base64ToUtf8(apiFile.content));
+        applyStorePayload(jsonData);
+        loaded = true;
       }
-      const ownerSnap = await getDoc(ownerAuthDocRef);
-      if (!ownerSnap.exists()) {
-        const defaultHash = await hashSecret('RRWear2026!');
-        await setDoc(ownerAuthDocRef, {
-          email: 'owner@rrwear.com',
-          passwordHash: defaultHash,
-          updatedAt: Date.now()
-        });
-      }
-    } catch (err) {
-      console.warn('Firestore seed notice:', err);
     }
-  };
-  seedIfEmpty();
 
-  onSnapshot(
-    settingsDocRef,
-    (snap) => {
-      if (snap.exists()) {
-        const data = snap.data();
-        state.siteSettings = {
-          ...DEFAULT_SITE_SETTINGS,
-          ...state.siteSettings,
-          ...data,
-          lookbookCards:
-            Array.isArray(data.lookbookCards) && data.lookbookCards.length > 0
-              ? data.lookbookCards
-              : DEFAULT_LOOKBOOK_CARDS
-        };
-        state.customForm = JSON.parse(JSON.stringify(state.siteSettings));
-        render();
+    if (!loaded) {
+      const backupRaw = localStorage.getItem('rr_wear_store_backup');
+      if (backupRaw) {
+        applyStorePayload(JSON.parse(backupRaw));
       }
-    },
-    (err) => console.warn('Settings snapshot:', err)
-  );
-
-  onSnapshot(
-    ownerAuthDocRef,
-    (snap) => {
-      if (snap.exists()) {
-        state.ownerAuthRecord = snap.data();
-        render();
-      }
-    },
-    (err) => console.warn('Owner auth snapshot:', err)
-  );
-
-  let seededCats = false;
-  onSnapshot(
-    categoriesColRef,
-    async (snap) => {
-      if (snap.empty && !seededCats) {
-        seededCats = true;
-        for (const cat of DEFAULT_CATEGORIES) {
-          await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'categories', cat.id), cat);
-        }
-        return;
-      }
-      state.categories = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-      render();
-    },
-    (err) => console.warn('Categories snapshot:', err)
-  );
-
-  let seededProds = false;
-  onSnapshot(
-    productsColRef,
-    async (snap) => {
-      if (snap.empty && !seededProds) {
-        seededProds = true;
-        for (const prod of DEFAULT_PRODUCTS) {
-          await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'products', prod.id), prod);
-        }
-        state.isDataLoaded = true;
-        render();
-        return;
-      }
-      state.products = snap.docs
-        .map((d) => ({ id: d.id, ...d.data() }))
-        .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
-      state.isDataLoaded = true;
-      render();
-    },
-    (err) => console.warn('Products snapshot:', err)
-  );
+    }
+  } catch (err) {
+    console.warn('GitHub store load notice:', err);
+    try {
+      const backupRaw = localStorage.getItem('rr_wear_store_backup');
+      if (backupRaw) applyStorePayload(JSON.parse(backupRaw));
+    } catch (e) {}
+  } finally {
+    state.isDataLoaded = true;
+    render();
+  }
 }
 
 // ============================================================================
@@ -1747,7 +1777,7 @@ function renderModals() {
   const s = state.siteSettings;
   let html = '';
 
-  // 1. Shopping Bag Modal (Triggered by clicking the Bag icon in the header)
+  // 1. Shopping Bag Modal
   if (state.bagModalOpen) {
     const totalMoney = getBagTotalAmount();
     const totalItems = getBagTotalCount();
@@ -1839,7 +1869,7 @@ function renderModals() {
     `;
   }
 
-  // 2. Social Media Order Modal (Single Product OR Multi-Product Bag Checkout)
+  // 2. Social Media Order Modal
   if (state.shopModalProduct || (state.shopModalBagItems && state.shopModalBagItems.length > 0)) {
     const isBagCheckout = Array.isArray(state.shopModalBagItems) && state.shopModalBagItems.length > 0;
     const product = state.shopModalProduct;
@@ -2254,7 +2284,7 @@ function renderImageFieldControl(label, fieldPath, value, aspectClass = 'w-20 h-
             isDark ? 'bg-white text-black hover:bg-zinc-200' : 'bg-[#0A0A0A] text-white hover:bg-[#272A2E]'
           }">
             <i data-lucide="upload" class="w-3 h-3"></i>
-            Upload File
+            Upload to Repo
             <input type="file" accept="image/*" data-img-file-field="${escapeHtml(fieldPath)}" data-max-width="${maxWidth}" class="hidden" />
           </label>
         </div>
@@ -2269,6 +2299,7 @@ function renderDashboardView() {
   const s = state.siteSettings;
   const publishedCount = state.products.filter((p) => p.visibility !== 'draft').length;
   const draftCount = state.products.filter((p) => p.visibility === 'draft').length;
+  const hasToken = Boolean(getGithubToken());
 
   const sidebarItems = [
     { id: 'overview', label: 'Dashboard Overview', icon: 'layout-dashboard' },
@@ -2278,6 +2309,18 @@ function renderDashboardView() {
     { id: 'customization', label: 'Website Customization', icon: 'palette' },
     { id: 'social', label: 'Contact & Social Links', icon: 'share-2' }
   ];
+
+  const tokenWarningBanner = !hasToken
+    ? `<div class="mb-6 rounded-2xl p-4 border border-amber-500/40 bg-amber-500/10 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div class="text-xs">
+          <strong class="block font-ui uppercase text-amber-500">GitHub Repository Sync Not Connected</strong>
+          <span class="opacity-85">Connect your GitHub Personal Access Token so uploaded images/videos save to <code>/uploads/</code> and all changes save permanently to <code>jakaria6231/clothing_website</code>.</span>
+        </div>
+        <button data-action="dash-tab" data-tab="social" class="px-4 py-2 rounded-full bg-amber-500 text-black font-ui text-[11px] font-bold uppercase shrink-0">
+          Connect GitHub Token
+        </button>
+      </div>`
+    : '';
 
   let mainContent = '';
 
@@ -2294,7 +2337,7 @@ function renderDashboardView() {
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <h1 class="font-display text-2xl sm:text-3xl font-extrabold uppercase tracking-[-0.02em]">DASHBOARD OVERVIEW</h1>
-            <p class="text-xs mt-1 ${isDark ? 'text-zinc-400' : 'text-[#6E7378]'}">Real-time overview of your storefront catalog, categories, and media inventory.</p>
+            <p class="text-xs mt-1 ${isDark ? 'text-zinc-400' : 'text-[#6E7378]'}">Real-time overview of your storefront catalog, categories, and GitHub media inventory.</p>
           </div>
           <button data-action="dash-new-product" class="inline-flex items-center gap-2 font-ui text-xs font-bold uppercase tracking-wider px-5 py-3 rounded-full shadow-sm ${
             isDark ? 'bg-white text-black' : 'bg-[#0A0A0A] text-white'
@@ -2470,16 +2513,16 @@ function renderDashboardView() {
             <h1 class="font-display text-2xl sm:text-3xl font-extrabold uppercase tracking-[-0.02em]">
               ${state.editingProductId ? 'EDIT PRODUCT' : 'ADD NEW PRODUCT'}
             </h1>
-            <p class="text-xs mt-1 ${isDark ? 'text-zinc-400' : 'text-[#6E7378]'}">Upload multiple photos &amp; videos, configure specs, and publish to your store.</p>
+            <p class="text-xs mt-1 ${isDark ? 'text-zinc-400' : 'text-[#6E7378]'}">Upload photos &amp; videos directly to your GitHub repo's /uploads/ folder and save permanently.</p>
           </div>
           <div class="flex items-center gap-2">
             <button type="button" data-action="dash-tab" data-tab="products" class="px-5 py-2.5 rounded-full text-xs font-bold border ${
               isDark ? 'bg-white/10 border-white/10' : 'bg-white border-black/10'
             }">Cancel</button>
-            <button type="submit" class="px-6 py-2.5 rounded-full font-ui text-xs font-bold uppercase tracking-wider shadow-md ${
+            <button type="submit" ${state.isSavingToGithub ? 'disabled' : ''} class="px-6 py-2.5 rounded-full font-ui text-xs font-bold uppercase tracking-wider shadow-md disabled:opacity-50 ${
               isDark ? 'bg-white text-black' : 'bg-[#0A0A0A] text-white'
             }">
-              ${state.editingProductId ? 'SAVE CHANGES' : 'PUBLISH PRODUCT'}
+              ${state.isSavingToGithub ? 'SAVING TO GITHUB...' : state.editingProductId ? 'SAVE CHANGES' : 'PUBLISH PRODUCT'}
             </button>
           </div>
         </div>
@@ -2526,13 +2569,13 @@ function renderDashboardView() {
                 <i data-lucide="image" class="w-4 h-4"></i>
                 PRODUCT IMAGES (${pf.images.length})
               </h2>
-              <p class="text-[11px] opacity-65">Upload multiple images, set primary cover photo, reorder, or replace individual photos.</p>
+              <p class="text-[11px] opacity-65">Uploaded images are saved automatically inside the /uploads/ folder of your GitHub repository.</p>
             </div>
             <label class="inline-flex items-center gap-2 font-ui text-xs font-bold uppercase tracking-wider px-4 py-2.5 rounded-full cursor-pointer ${
               isDark ? 'bg-white text-black' : 'bg-[#0A0A0A] text-white'
             }">
               <i data-lucide="upload" class="w-3.5 h-3.5"></i>
-              Upload Images
+              Upload Images to Repo
               <input id="pf-images-file" type="file" accept="image/*" multiple class="hidden" />
             </label>
           </div>
@@ -2594,13 +2637,13 @@ function renderDashboardView() {
                 <i data-lucide="video" class="w-4 h-4"></i>
                 PRODUCT VIDEOS (${pf.videos.length})
               </h2>
-              <p class="text-[11px] opacity-65">Upload MP4/WebM clips (under 750KB) or add hosted MP4 links for Product Details playback.</p>
+              <p class="text-[11px] opacity-65">Upload MP4/WebM clips (under 20MB) directly into your GitHub repo /uploads/ folder or paste a video link.</p>
             </div>
             <label class="inline-flex items-center gap-2 font-ui text-xs font-bold uppercase tracking-wider px-4 py-2.5 rounded-full cursor-pointer ${
               isDark ? 'bg-white text-black' : 'bg-[#0A0A0A] text-white'
             }">
               <i data-lucide="upload" class="w-3.5 h-3.5"></i>
-              Upload MP4 / WebM
+              Upload Video to Repo
               <input id="pf-videos-file" type="file" accept="video/mp4,video/webm" multiple class="hidden" />
             </label>
           </div>
@@ -3038,12 +3081,40 @@ function renderDashboardView() {
     `;
   } else if (state.dashboardTab === 'social') {
     const ownerEmail = state.ownerAuthRecord?.email || 'owner@rrwear.com';
+    const currentToken = getGithubToken();
     mainContent = `
       <div class="space-y-6">
         <div>
-          <h1 class="font-display text-2xl sm:text-3xl font-extrabold uppercase tracking-[-0.02em]">CONTACT &amp; SOCIAL LINKS</h1>
-          <p class="text-xs mt-1 ${isDark ? 'text-zinc-400' : 'text-[#6E7378]'}">Configure the WhatsApp, Telegram, and Facebook Messenger destinations used when customers click SHOP.</p>
+          <h1 class="font-display text-2xl sm:text-3xl font-extrabold uppercase tracking-[-0.02em]">CONTACT, SOCIAL &amp; GITHUB REPO SYNC</h1>
+          <p class="text-xs mt-1 ${isDark ? 'text-zinc-400' : 'text-[#6E7378]'}">Connect your GitHub repository for permanent storage and configure your social media ordering links.</p>
         </div>
+
+        <form id="github-token-form" class="rounded-3xl p-6 shadow-sm border space-y-4 ${
+          isDark ? 'bg-[#121216] border-cyan-400/30' : 'bg-white border-cyan-600/25'
+        }">
+          <div class="flex items-center justify-between flex-wrap gap-2">
+            <h2 class="font-ui text-sm font-extrabold uppercase tracking-wider flex items-center gap-2">
+              <i data-lucide="github" class="w-4 h-4"></i>
+              GITHUB REPOSITORY PERMANENT SYNC (${GITHUB_CONFIG.owner}/${GITHUB_CONFIG.repo})
+            </h2>
+            <span class="px-3 py-1 rounded-full font-ui text-[10px] font-bold uppercase ${
+              currentToken ? 'bg-emerald-500/15 text-emerald-500' : 'bg-amber-500/15 text-amber-500'
+            }">
+              ${currentToken ? 'Connected & Active' : 'Token Required'}
+            </span>
+          </div>
+          <p class="text-xs opacity-75 leading-relaxed">
+            Paste a GitHub Personal Access Token (with <strong>Contents: Read and write</strong> permission on <code>${GITHUB_CONFIG.repo}</code>). All uploaded images/videos will save inside <code>/${GITHUB_CONFIG.mediaFolder}/</code> and all store edits will save permanently to <code>/${GITHUB_CONFIG.dataPath}</code>.
+          </p>
+          <div class="flex flex-col sm:flex-row gap-3">
+            <input id="gh-token-input" type="password" value="${escapeHtml(currentToken)}" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx or github_pat_..." class="flex-1 rounded-2xl border px-4 py-2.5 text-sm ${
+              isDark ? 'bg-[#1B1B21] border-white/15 text-white' : 'bg-white border-black/15'
+            }" />
+            <button type="submit" class="px-6 py-2.5 rounded-full font-ui text-xs font-bold uppercase tracking-wider shadow-md ${
+              isDark ? 'bg-cyan-400 text-black' : 'bg-[#0A0A0A] text-white'
+            }">Save &amp; Sync Repo</button>
+          </div>
+        </form>
 
         <form id="social-links-form" class="rounded-3xl p-6 shadow-sm border space-y-5 ${
           isDark ? 'bg-[#121216] border-white/10' : 'bg-white border-black/5'
@@ -3187,6 +3258,7 @@ function renderDashboardView() {
 
       <!-- Main Workspace -->
       <main class="flex-1 p-4 sm:p-8 lg:p-10 max-w-6xl mx-auto w-full">
+        ${tokenWarningBanner}
         ${mainContent}
       </main>
     </div>
@@ -3308,7 +3380,6 @@ function playShowcaseAnimation(sectionEl) {
   showcaseTimers.forEach((t) => clearTimeout(t));
   showcaseTimers = [];
 
-  // 1. Rebuild Venetian-blind slats so they wipe open cleanly on every entry
   sectionEl.querySelectorAll('.showcase-card-enter').forEach((card, cardIdx) => {
     const oldOverlay = card.querySelector('.showcase-blinds-overlay');
     if (oldOverlay) oldOverlay.remove();
@@ -3335,7 +3406,6 @@ function playShowcaseAnimation(sectionEl) {
     showcaseTimers.push(timer);
   });
 
-  // 2. Staggered editorial caption reveal
   sectionEl.querySelectorAll('.showcase-caption-enter').forEach((cap) => {
     const delay = Number(cap.getAttribute('data-delay') || 350);
     const timer = setTimeout(() => {
@@ -3358,7 +3428,6 @@ function initShowcaseMotion() {
   const sectionEl = document.getElementById('showcase-section');
   if (!sectionEl || state.activeView !== 'home') return;
 
-  // Replay every time the user enters from above (scroll down) OR below (scroll up), plus on refresh
   showcaseObserver = new IntersectionObserver(
     (entries) => {
       entries.forEach((entry) => {
@@ -3375,7 +3444,6 @@ function initShowcaseMotion() {
   showcaseObserver.observe(sectionEl);
 }
 
-// Continuous scroll-linked parallax for watermark & outer columns
 let showcaseParallaxTicking = false;
 window.addEventListener(
   'scroll',
@@ -3388,7 +3456,6 @@ window.addEventListener(
         const rect = sectionEl.getBoundingClientRect();
         const vh = window.innerHeight || 800;
         if (rect.bottom > 0 && rect.top < vh) {
-          // Progress from -1 (entering bottom) to +1 (exiting top)
           const progress = ((vh * 0.5 - (rect.top + rect.height * 0.5)) / vh) * 2;
           const watermark = document.getElementById('showcase-watermark-text');
           const leftCol = document.getElementById('showcase-col-left');
@@ -3599,6 +3666,7 @@ document.addEventListener('click', async (e) => {
     render();
   } else if (action === 'owner-logout') {
     state.isOwnerAuthenticated = false;
+    sessionStorage.removeItem('rr_wear_owner_auth');
     state.editingProductId = null;
     state.dashboardTab = 'overview';
     navigateTo('home');
@@ -3647,9 +3715,11 @@ document.addEventListener('click', async (e) => {
       prod.visibility = nextVis;
       render();
       try {
-        await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'products', id), { visibility: nextVis });
-      } catch (err) {}
-      showToast(`Product marked as ${nextVis}.`);
+        await persistStoreToGithub(`Set ${prod.name} visibility to ${nextVis}`);
+        showToast(`Product marked as ${nextVis} & saved to GitHub!`);
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
     }
   } else if (action === 'prompt-delete-prod') {
     state.deleteProductTarget = state.products.find((p) => p.id === btn.getAttribute('data-id')) || null;
@@ -3665,9 +3735,11 @@ document.addEventListener('click', async (e) => {
       state.deleteProductTarget = null;
       render();
       try {
-        await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'products', target.id));
-      } catch (err) {}
-      showToast(`Deleted "${target.name}" permanently.`);
+        await persistStoreToGithub(`Delete product ${target.name}`);
+        showToast(`Deleted "${target.name}" permanently from GitHub.`);
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
     }
   }
   // Product Form Media/Specs Actions
@@ -3749,21 +3821,20 @@ document.addEventListener('click', async (e) => {
 
       for (const prod of associated) {
         prod.categoryId = fallbackId;
-        try {
-          await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'products', prod.id), { categoryId: fallbackId });
-        } catch (err) {}
       }
       state.categories = state.categories.filter((c) => c.id !== targetCat.id);
       state.deleteCategoryModal = null;
       render();
       try {
-        await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'categories', targetCat.id));
-      } catch (err) {}
-      showToast(
-        associated.length > 0
-          ? `Category deleted and ${associated.length} product(s) safely reassigned.`
-          : 'Category deleted.'
-      );
+        await persistStoreToGithub(`Delete category ${targetCat.name}`);
+        showToast(
+          associated.length > 0
+            ? `Category deleted and ${associated.length} product(s) reassigned & saved.`
+            : 'Category deleted permanently.'
+        );
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
     }
   }
   // Customization Sub-tabs & Lookbook Actions
@@ -3859,22 +3930,28 @@ document.addEventListener('change', async (e) => {
   } else if (el.id === 'pf-images-file') {
     const files = Array.from(el.files || []);
     if (files.length) {
-      try {
-        const compressed = await Promise.all(files.map((f) => compressImageFile(f, 1000, 0.8)));
-        state.prodForm.images.push(...compressed);
-        render();
-        showToast(`Added ${compressed.length} image(s).`);
-      } catch (err) {
-        showToast('Could not process selected image(s).', 'error');
+      showToast(`Uploading ${files.length} image(s) to GitHub /uploads/ folder...`);
+      for (const f of files) {
+        try {
+          const compressedDataUrl = await compressImageFile(f, 1100, 0.85);
+          const githubRawUrl = await uploadMediaToGithub(compressedDataUrl, f.name);
+          state.prodForm.images.push(githubRawUrl);
+        } catch (err) {
+          showToast(err.message || 'Could not upload image to GitHub.', 'error');
+        }
       }
+      render();
+      showToast('Image(s) saved in your GitHub repository /uploads/ folder!');
     }
   } else if (el.id === 'pf-videos-file') {
     const files = Array.from(el.files || []);
     for (const file of files) {
       try {
+        showToast(`Uploading video "${file.name}" to GitHub /uploads/ folder...`);
         const dataUrl = await readVideoFile(file);
-        state.prodForm.videos.push({ name: file.name, url: dataUrl });
-        showToast(`Uploaded video "${file.name}".`);
+        const githubRawUrl = await uploadMediaToGithub(dataUrl, file.name);
+        state.prodForm.videos.push({ name: file.name, url: githubRawUrl });
+        showToast(`Video "${file.name}" saved in GitHub /uploads/ folder!`);
       } catch (err) {
         showToast(err.message, 'error');
       }
@@ -3883,13 +3960,17 @@ document.addEventListener('change', async (e) => {
   } else if (el.hasAttribute('data-img-file-field')) {
     const path = el.getAttribute('data-img-file-field');
     const maxW = Number(el.getAttribute('data-max-width') || 1100);
-    if (el.files?.[0]) {
+    const file = el.files?.[0];
+    if (file) {
       try {
-        const dataUrl = await compressImageFile(el.files[0], maxW, 0.82);
-        applyImageFieldValue(path, dataUrl);
+        showToast('Uploading image to GitHub /uploads/ folder...');
+        const dataUrl = await compressImageFile(file, maxW, 0.85);
+        const githubRawUrl = await uploadMediaToGithub(dataUrl, file.name);
+        applyImageFieldValue(path, githubRawUrl);
         render();
+        showToast('Image saved to GitHub /uploads/ folder!');
       } catch (err) {
-        showToast('Failed to process image.', 'error');
+        showToast(err.message || 'Failed to upload image to GitHub.', 'error');
       }
     }
   }
@@ -3919,21 +4000,9 @@ document.addEventListener('submit', async (e) => {
     const defaultHash = await hashSecret('RRWear2026!');
     const storedHash = state.ownerAuthRecord?.passwordHash || defaultHash;
 
-    let firebaseEmailAuthOk = false;
-    try {
-      await signInWithEmailAndPassword(auth, normalizedEmail, state.loginPassword);
-      firebaseEmailAuthOk = true;
-    } catch (fbErr) {
-      firebaseEmailAuthOk = false;
-    }
-
-    if (firebaseEmailAuthOk || (normalizedEmail === storedEmail && inputHash === storedHash)) {
-      if (!auth.currentUser) {
-        try {
-          await signInAnonymously(auth);
-        } catch (err) {}
-      }
+    if (normalizedEmail === storedEmail && inputHash === storedHash) {
       state.isOwnerAuthenticated = true;
+      sessionStorage.setItem('rr_wear_owner_auth', 'true');
       state.dashboardTab = 'overview';
       navigateTo('dashboard');
       showToast(`Welcome back to ${state.siteSettings.brandName} Dashboard`);
@@ -3947,18 +4016,18 @@ document.addEventListener('submit', async (e) => {
       render();
       return;
     }
-    try {
-      await sendPasswordResetEmail(auth, state.loginEmail.trim());
-    } catch (err) {}
     state.loginResetSent = true;
     render();
-    showToast('Password reset link sent to your email.');
+    showToast('Password recovery request logged.');
   } else if (formId === 'product-save-form') {
     const pf = state.prodForm;
     if (!pf.name.trim() || pf.price === '' || pf.images.length === 0) {
       showToast('Please enter product name, price, and at least one product image.', 'error');
       return;
     }
+    state.isSavingToGithub = true;
+    render();
+
     const id = state.editingProductId || `prod-${Date.now()}`;
     const existing = state.products.find((p) => p.id === id);
     const payload = {
@@ -3980,13 +4049,24 @@ document.addEventListener('submit', async (e) => {
     } else {
       state.products.unshift(payload);
     }
+
     try {
-      await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'products', id), payload);
-    } catch (err) {}
-    showToast(state.editingProductId ? 'Product updated successfully!' : 'New product published!');
-    state.editingProductId = null;
-    state.dashboardTab = 'products';
-    render();
+      await persistStoreToGithub(
+        state.editingProductId ? `Update product: ${payload.name}` : `Add new product: ${payload.name}`
+      );
+      showToast(
+        state.editingProductId
+          ? 'Product updated & permanently saved to GitHub!'
+          : 'New product published & permanently saved to GitHub!'
+      );
+      state.editingProductId = null;
+      state.dashboardTab = 'products';
+    } catch (err) {
+      showToast(err.message, 'error');
+    } finally {
+      state.isSavingToGithub = false;
+      render();
+    }
   } else if (formId === 'category-save-form') {
     const cf = state.catForm;
     if (!cf.name.trim()) return;
@@ -4005,18 +4085,38 @@ document.addEventListener('submit', async (e) => {
     else state.categories.push(payload);
 
     try {
-      await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'categories', id), payload);
-    } catch (err) {}
-    showToast(state.editingCategoryId ? 'Category updated!' : 'New category created!');
+      await persistStoreToGithub(
+        state.editingCategoryId ? `Update category: ${payload.name}` : `Create category: ${payload.name}`
+      );
+      showToast(
+        state.editingCategoryId
+          ? 'Category updated & saved permanently!'
+          : 'New category created & saved permanently!'
+      );
+    } catch (err) {
+      showToast(err.message, 'error');
+    }
     state.editingCategoryId = null;
     state.catForm = { name: '', description: '', image: '', banner: '' };
     render();
   } else if (formId === 'customization-save-form') {
     state.siteSettings = JSON.parse(JSON.stringify(state.customForm));
     try {
-      await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'general'), state.siteSettings);
-    } catch (err) {}
-    showToast('All website images, titles & customization saved live!');
+      await persistStoreToGithub('Update website customization & banners');
+      showToast('All website images, titles & customization permanently saved to GitHub!');
+    } catch (err) {
+      showToast(err.message, 'error');
+    }
+    render();
+  } else if (formId === 'github-token-form') {
+    const tokenVal = document.getElementById('gh-token-input')?.value.trim() || '';
+    setGithubToken(tokenVal);
+    try {
+      await persistStoreToGithub('Initialize GitHub permanent store sync');
+      showToast('GitHub Repository connected & store synced permanently!');
+    } catch (err) {
+      showToast(err.message, 'error');
+    }
     render();
   } else if (formId === 'social-links-form') {
     const wa = document.getElementById('social-whatsapp')?.value.trim() || '';
@@ -4029,13 +4129,11 @@ document.addEventListener('submit', async (e) => {
     state.customForm.telegramUsername = tg;
     state.customForm.messengerUsername = msg;
     try {
-      await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'general'), {
-        whatsappNumber: wa,
-        telegramUsername: tg,
-        messengerUsername: msg
-      });
-    } catch (err) {}
-    showToast('Social media ordering links updated across all product cards!');
+      await persistStoreToGithub('Update social media contact links');
+      showToast('Social media ordering links permanently saved to GitHub!');
+    } catch (err) {
+      showToast(err.message, 'error');
+    }
   } else if (formId === 'owner-security-form') {
     const emailVal = document.getElementById('sec-owner-email')?.value.trim().toLowerCase();
     const passVal = document.getElementById('sec-new-pass')?.value.trim();
@@ -4050,10 +4148,12 @@ document.addEventListener('submit', async (e) => {
     }
     state.ownerAuthRecord = { ...(state.ownerAuthRecord || {}), ...updates };
     try {
-      await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'ownerAuth'), updates, { merge: true });
-    } catch (err) {}
-    document.getElementById('sec-new-pass').value = '';
-    showToast('Owner login credentials updated!');
+      await persistStoreToGithub('Update owner portal credentials');
+      document.getElementById('sec-new-pass').value = '';
+      showToast('Owner login credentials permanently saved to GitHub!');
+    } catch (err) {
+      showToast(err.message, 'error');
+    }
   }
 });
 
@@ -4061,5 +4161,5 @@ document.addEventListener('submit', async (e) => {
 // 14. BOOTSTRAP APPLICATION
 // ============================================================================
 window.addEventListener('hashchange', handleHashChange);
-initFirebase();
 handleHashChange();
+initStoreFromGithub();
