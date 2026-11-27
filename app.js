@@ -1688,6 +1688,9 @@ function renderStorefrontView() {
                   .join('')}
               </div>
             </section>
+            </main>
+        `
+        }
 
         <!-- SECTION 7: MINIMALIST ARCHITECTURAL FOOTER -->
         <footer class="rounded-[28px] sm:rounded-[36px] border p-6 sm:p-12 shadow-sm transition-colors duration-300 ${
