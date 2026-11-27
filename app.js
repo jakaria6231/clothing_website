@@ -1784,7 +1784,7 @@ function renderModals() {
 
     html += `
       <div data-action="close-bag-modal" class="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-        <div onclick="event.stopPropagation()" class="rounded-[30px] max-w-md w-full overflow-hidden shadow-2xl border animate-modal-in ${
+        <div data-action="modal-card" class="rounded-[30px] max-w-md w-full overflow-hidden shadow-2xl border animate-modal-in ${
           isDark ? 'bg-[#121216] border-white/10 text-white' : 'bg-white border-black/5 text-[#0A0A0A]'
         }">
           <div class="px-6 py-4 border-b flex items-center justify-between ${
@@ -1938,7 +1938,7 @@ function renderModals() {
 
     html += `
       <div data-action="close-shop-modal" class="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-        <div onclick="event.stopPropagation()" class="rounded-[30px] max-w-md w-full max-h-[92vh] overflow-y-auto shadow-2xl border animate-modal-in ${
+        <div data-action="modal-card" class="rounded-[30px] max-w-md w-full max-h-[92vh] overflow-y-auto shadow-2xl border animate-modal-in ${
           isDark ? 'bg-[#121216] border-white/10 text-white' : 'bg-white border-black/5 text-[#0A0A0A]'
         }">
           <div class="px-6 py-4 border-b flex items-center justify-between sticky top-0 z-10 ${
@@ -2026,7 +2026,7 @@ function renderModals() {
   if (state.heroVideoOpen) {
     html += `
       <div data-action="close-hero-video" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
-        <div onclick="event.stopPropagation()" class="bg-[#121216] rounded-3xl max-w-2xl w-full overflow-hidden border border-white/15 shadow-2xl animate-modal-in">
+        <div data-action="modal-card" class="bg-[#121216] rounded-3xl max-w-2xl w-full overflow-hidden border border-white/15 shadow-2xl animate-modal-in">
           <div class="flex items-center justify-between px-6 py-4 border-b border-white/10">
             ${renderBrandLogo(s.logoUrl, s.brandName, 'sm', false)}
             <button data-action="close-hero-video" class="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center">
