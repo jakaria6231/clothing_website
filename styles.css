@@ -560,50 +560,114 @@ body {
   transform: translateY(0) scale(1);
 }
 
-/* ========================================================
-   SECTION 5: PRODUCT CATALOG GRID — TRUE SCROLL-DRIVEN 3D WAVE
-   ======================================================== */
-.catalog-header-trigger .catalog-head-line {
-  transform: translateY(115%);
+/* ==========================================================================
+   SECTION 5: PRODUCT CATALOG GRID — ROW-BY-ROW STAGGERED WAVE REVEAL
+   ========================================================================== */
+
+#catalog .catalog-meta-left {
   opacity: 0;
-  transition: transform 0.85s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.65s ease;
+  transform: translateX(-22px);
+  transition:
+    transform 0.7s cubic-bezier(0.16, 1, 0.3, 1) 0.05s,
+    opacity 0.6s ease-out 0.05s;
+  will-change: transform, opacity;
 }
-.catalog-header-trigger .catalog-meta-left,
-.catalog-header-trigger .catalog-meta-right {
+
+#catalog .catalog-meta-right {
   opacity: 0;
-  transform: translateY(16px);
-  transition: opacity 0.65s ease 0.18s, transform 0.75s cubic-bezier(0.16, 1, 0.3, 1) 0.18s;
+  transform: translateX(22px);
+  transition:
+    transform 0.7s cubic-bezier(0.16, 1, 0.3, 1) 0.12s,
+    opacity 0.6s ease-out 0.12s;
+  will-change: transform, opacity;
 }
-.catalog-header-trigger .catalog-controls-reveal {
+
+#catalog .catalog-head-line {
+  opacity: 0;
+  transform: translateY(112%);
+  will-change: transform, opacity;
+}
+
+#catalog .catalog-head-line-1 {
+  transition:
+    transform 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.08s,
+    opacity 0.6s ease-out 0.08s;
+}
+
+#catalog .catalog-head-line-2 {
+  transition:
+    transform 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.18s,
+    opacity 0.6s ease-out 0.18s;
+}
+
+#catalog .catalog-controls-reveal {
   opacity: 0;
   transform: translateY(20px);
-  transition: opacity 0.7s ease 0.25s, transform 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.25s;
-}
-.catalog-header-trigger.catalog-head-visible .catalog-head-line {
-  transform: translateY(0);
-  opacity: 1;
-}
-.catalog-header-trigger.catalog-head-visible .catalog-head-line-2 {
-  transition-delay: 0.12s;
-}
-.catalog-header-trigger.catalog-head-visible .catalog-meta-left,
-.catalog-header-trigger.catalog-head-visible .catalog-meta-right,
-.catalog-header-trigger.catalog-head-visible .catalog-controls-reveal {
-  opacity: 1;
-  transform: translateY(0);
-}
-
-/* 3D Perspective Container */
-.catalog-card-slot,
-.catalog-cta-slot {
-  position: relative;
-  perspective: 1100px;
-}
-
-/* Scroll-Scrubbed Card Motion */
-.catalog-card-motion,
-.catalog-cta-motion {
-  transform-origin: center top;
+  transition:
+    transform 0.75s cubic-bezier(0.16, 1, 0.3, 1) 0.24s,
+    opacity 0.65s ease-out 0.24s;
   will-change: transform, opacity;
-  transition: transform 0.14s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.14s ease-out;
+}
+
+#catalog .catalog-header-trigger.is-catalog-head-visible .catalog-meta-left,
+#catalog .catalog-header-trigger.is-catalog-head-visible .catalog-meta-right {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+#catalog .catalog-header-trigger.is-catalog-head-visible .catalog-head-line,
+#catalog .catalog-header-trigger.is-catalog-head-visible .catalog-controls-reveal {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Outer slot stays fixed in the CSS Grid so IntersectionObserver never jitters */
+#catalog .catalog-card-slot {
+  position: relative;
+}
+
+/* Inner motion wrapper performs the staircase wave rise */
+#catalog .catalog-card-motion {
+  opacity: 0;
+  transform: translateY(96px) scale(0.95);
+  transition:
+    transform 0.85s cubic-bezier(0.16, 1, 0.3, 1),
+    opacity 0.65s cubic-bezier(0.16, 1, 0.3, 1);
+  transition-delay: calc(var(--card-col, 0) * 115ms);
+  will-change: transform, opacity;
+}
+
+#catalog .catalog-card-slot.is-card-visible .catalog-card-motion {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+
+/* Floating glass capsule inside each catalog card settles slightly after the card rises */
+#catalog .catalog-card-slot .catalog-card-motion > div > div:last-child {
+  opacity: 0;
+  transform: translateY(14px);
+  transition:
+    transform 0.65s cubic-bezier(0.16, 1, 0.3, 1),
+    opacity 0.55s ease-out;
+  transition-delay: calc(var(--card-col, 0) * 115ms + 140ms);
+}
+
+#catalog .catalog-card-slot.is-card-visible .catalog-card-motion > div > div:last-child {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Bottom SHOP ALL CTA reveal */
+#catalog .catalog-cta-motion {
+  opacity: 0;
+  transform: translateY(30px) scale(0.94);
+  transition:
+    transform 0.75s cubic-bezier(0.16, 1, 0.3, 1) 0.12s,
+    opacity 0.65s ease-out 0.12s;
+  will-change: transform, opacity;
+}
+
+#catalog .catalog-cta-slot.is-cta-visible .catalog-cta-motion {
+  opacity: 1;
+  transform: translateY(0) scale(1);
 }
