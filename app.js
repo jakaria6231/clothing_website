@@ -1404,57 +1404,76 @@ function renderStorefrontView() {
             </section>
 
             <!-- SECTION 3: 2-COLUMN PERFORMANCE EDITORIAL SPLIT -->
-            <section class="rounded-[28px] sm:rounded-[36px] border p-6 sm:p-12 transition-colors duration-300 ${
+            <section id="promo-section" class="rounded-[28px] sm:rounded-[36px] border p-6 sm:p-12 transition-colors duration-300 ${
               isDark ? 'bg-[#121216] border-white/10' : 'bg-[#F4F5F7] border-white'
             }">
-              <div class="scroll-reveal reveal-rise flex flex-col md:flex-row md:items-end justify-between gap-4 mb-7 sm:mb-9">
+              <div class="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-7 sm:mb-9">
                 <div>
-                  <span class="block font-ui text-[10px] font-bold uppercase tracking-[0.16em] mb-2 ${
-                    isDark ? 'text-cyan-400' : 'text-[#6E7378]'
-                  }">OUTERWEAR</span>
+                  <span class="block overflow-hidden mb-2">
+                    <span class="promo-text-line block font-ui text-[10px] font-bold uppercase tracking-[0.16em] ${
+                      isDark ? 'text-cyan-400' : 'text-[#6E7378]'
+                    }" style="transition-delay: 0ms;">OUTERWEAR</span>
+                  </span>
                   <h2 class="font-display text-2xl sm:text-4xl font-extrabold uppercase tracking-[-0.035em] leading-[1.03] ${
                     isDark ? 'text-white' : 'text-[#0A0A0A]'
                   }">
-                    ${escapeHtml(s.promoSectionTitleLine1)}<br />${escapeHtml(s.promoSectionTitleLine2)}
+                    <span class="block overflow-hidden pb-0.5">
+                      <span class="promo-text-line block" style="transition-delay: 90ms;">${escapeHtml(s.promoSectionTitleLine1)}</span>
+                    </span>
+                    <span class="block overflow-hidden pb-0.5">
+                      <span class="promo-text-line block" style="transition-delay: 190ms;">${escapeHtml(s.promoSectionTitleLine2)}</span>
+                    </span>
                   </h2>
                 </div>
-                <p class="text-xs max-w-[270px] leading-relaxed ${isDark ? 'text-zinc-400' : 'text-[#5C636A]'}">
+                <p class="promo-subtitle-fade text-xs max-w-[270px] leading-relaxed ${isDark ? 'text-zinc-400' : 'text-[#5C636A]'}" style="transition-delay: 280ms;">
                   ${escapeHtml(s.promoSectionSubtitle)}
                 </p>
               </div>
 
               <div class="grid grid-cols-1 md:grid-cols-2 gap-5 sm:gap-6">
-                <div class="scroll-reveal reveal-scale" style="transition-delay: 80ms;">
+                <div class="promo-card-reveal" style="transition-delay: 160ms;">
                   <div data-action="filter-cat" data-cat="ALL" class="group relative rounded-[28px] overflow-hidden aspect-[4/4.3] bg-[#22252A] cursor-pointer shadow-md">
-                    <img src="${escapeHtml(s.promoCard1Image)}" alt="${escapeHtml(s.promoCard1Title)}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-out" />
+                    <div class="promo-img-zoom w-full h-full" style="transition-delay: 160ms;">
+                      <img src="${escapeHtml(s.promoCard1Image)}" alt="${escapeHtml(s.promoCard1Title)}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-out" />
+                    </div>
                     <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-black/15"></div>
-                    <span class="absolute top-5 right-5 px-3.5 py-1.5 rounded-full bg-white/15 backdrop-blur-md text-white font-ui text-[10px] font-bold uppercase tracking-[0.12em] border border-white/20">
+                    <span class="promo-tag-reveal absolute top-5 right-5 px-3.5 py-1.5 rounded-full bg-white/15 backdrop-blur-md text-white font-ui text-[10px] font-bold uppercase tracking-[0.12em] border border-white/20" style="transition-delay: 520ms;">
                       ${escapeHtml(s.promoCard1Tag)}
                     </span>
                     <div class="absolute bottom-7 left-7 right-7 flex items-end justify-between gap-4">
-                      <h3 class="font-display text-white text-xl sm:text-2xl font-extrabold uppercase tracking-[-0.03em] leading-tight max-w-[290px]">
-                        ${escapeHtml(s.promoCard1Title)}
-                      </h3>
-                      <span class="w-11 h-11 rounded-full bg-white text-[#0A0A0A] flex items-center justify-center shrink-0 transition-transform duration-500 ease-out group-hover:translate-x-1 group-hover:-translate-y-1 group-hover:rotate-12 shadow-lg">
-                        <i data-lucide="arrow-up-right" class="w-4 h-4"></i>
+                      <div class="overflow-hidden max-w-[290px]">
+                        <h3 class="promo-card-title font-display text-white text-xl sm:text-2xl font-extrabold uppercase tracking-[-0.03em] leading-tight" style="transition-delay: 600ms;">
+                          ${escapeHtml(s.promoCard1Title)}
+                        </h3>
+                      </div>
+                      <span class="promo-arrow-reveal shrink-0" style="transition-delay: 680ms;">
+                        <span class="w-11 h-11 rounded-full bg-white text-[#0A0A0A] flex items-center justify-center transition-transform duration-500 ease-out group-hover:translate-x-1 group-hover:-translate-y-1 group-hover:rotate-12 shadow-lg">
+                          <i data-lucide="arrow-up-right" class="w-4 h-4"></i>
+                        </span>
                       </span>
                     </div>
                   </div>
                 </div>
 
-                <div class="scroll-reveal reveal-scale" style="transition-delay: 180ms;">
+                <div class="promo-card-reveal" style="transition-delay: 380ms;">
                   <div data-action="filter-cat" data-cat="ALL" class="group relative rounded-[28px] overflow-hidden aspect-[4/4.3] bg-[#1A1C1E] cursor-pointer shadow-md">
-                    <img src="${escapeHtml(s.promoCard2Image)}" alt="${escapeHtml(s.promoCard2Title)}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-out" />
+                    <div class="promo-img-zoom w-full h-full" style="transition-delay: 380ms;">
+                      <img src="${escapeHtml(s.promoCard2Image)}" alt="${escapeHtml(s.promoCard2Title)}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-out" />
+                    </div>
                     <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-black/15"></div>
-                    <span class="absolute top-5 right-5 px-3.5 py-1.5 rounded-full bg-white/15 backdrop-blur-md text-white font-ui text-[10px] font-bold uppercase tracking-[0.12em] border border-white/20">
+                    <span class="promo-tag-reveal absolute top-5 right-5 px-3.5 py-1.5 rounded-full bg-white/15 backdrop-blur-md text-white font-ui text-[10px] font-bold uppercase tracking-[0.12em] border border-white/20" style="transition-delay: 740ms;">
                       ${escapeHtml(s.promoCard2Tag)}
                     </span>
                     <div class="absolute bottom-7 left-7 right-7 flex items-end justify-between gap-4">
-                      <h3 class="font-display text-white text-xl sm:text-2xl font-extrabold uppercase tracking-[-0.03em] leading-tight max-w-[300px]">
-                        ${escapeHtml(s.promoCard2Title)}
-                      </h3>
-                      <span class="w-11 h-11 rounded-full bg-white text-[#0A0A0A] flex items-center justify-center shrink-0 transition-transform duration-500 ease-out group-hover:translate-x-1 group-hover:-translate-y-1 group-hover:rotate-12 shadow-lg">
-                        <i data-lucide="arrow-up-right" class="w-4 h-4"></i>
+                      <div class="overflow-hidden max-w-[300px]">
+                        <h3 class="promo-card-title font-display text-white text-xl sm:text-2xl font-extrabold uppercase tracking-[-0.03em] leading-tight" style="transition-delay: 820ms;">
+                          ${escapeHtml(s.promoCard2Title)}
+                        </h3>
+                      </div>
+                      <span class="promo-arrow-reveal shrink-0" style="transition-delay: 900ms;">
+                        <span class="w-11 h-11 rounded-full bg-white text-[#0A0A0A] flex items-center justify-center transition-transform duration-500 ease-out group-hover:translate-x-1 group-hover:-translate-y-1 group-hover:rotate-12 shadow-lg">
+                          <i data-lucide="arrow-up-right" class="w-4 h-4"></i>
+                        </span>
                       </span>
                     </div>
                   </div>
@@ -3429,6 +3448,29 @@ function initShowcaseMotion() {
   showcaseObserver.observe(sectionEl);
 }
 
+let promoObserver = null;
+
+function initPromoMotion() {
+  if (promoObserver) promoObserver.disconnect();
+  const promoEl = document.getElementById('promo-section');
+  if (!promoEl || state.activeView !== 'home') return;
+
+  promoObserver = new IntersectionObserver(
+    (entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          promoEl.classList.add('is-promo-visible');
+        } else {
+          promoEl.classList.remove('is-promo-visible');
+        }
+      });
+    },
+    { threshold: 0.16 }
+  );
+
+  promoObserver.observe(promoEl);
+}
+
 let showcaseParallaxTicking = false;
 window.addEventListener(
   'scroll',
@@ -3497,6 +3539,7 @@ function render() {
   initScrollReveals();
   initHeroMotion();
   initShowcaseMotion();
+  initPromoMotion();
 }
 
 // ============================================================================
