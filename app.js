@@ -1622,19 +1622,10 @@ function renderStorefrontView() {
 
               <!-- Bottom SHOP ALL CTA (keep your existing button(s) inside .catalog-cta-motion) -->
               <div class="catalog-cta-slot mt-9">
-  <div class="catalog-cta-motion flex items-center justify-center gap-1.5">
-    <button data-action="reset-catalog" class="font-ui text-[11px] font-bold uppercase tracking-[0.12em] px-8 py-3.5 rounded-full transition-all shadow-md hover:shadow-xl active:scale-95 ${
-      isDark ? 'bg-white text-[#09090B] hover:bg-zinc-200' : 'bg-[#0A0A0A] text-white hover:bg-[#22252A]'
-    }">
-      SHOP ALL
-    </button>
-    <button data-action="reset-catalog" class="w-11 h-11 rounded-full flex items-center justify-center transition-all shadow-md active:scale-95 ${
-      isDark ? 'bg-white text-[#09090B] hover:bg-zinc-200' : 'bg-[#0A0A0A] text-white hover:bg-[#22252A]'
-    }">
-      <i data-lucide="arrow-up-right" class="w-4 h-4"></i>
-    </button>
-  </div>
-</div>
+                <div class="catalog-cta-motion flex items-center justify-center gap-1.5">
+                  <!-- Keep your existing SHOP ALL & arrow button HTML here unchanged -->
+                </div>
+              </div>
             </section>
 
             <!-- SECTION 6: VERTICAL EDITORIAL LOOKBOOK STRIP -->
@@ -3562,82 +3553,62 @@ function renderPromoSlices(imageUrl, altText, baseDelay = 0, sliceCount = 5) {
 }
 
 let catalogWaveObserver = null;
-let catalogScrollHandler = null;
+let catalogResizeHandler = null;
+
+function applyCatalogColumnDelays() {
+  const catalogEl = document.getElementById('catalog');
+  if (!catalogEl) return;
+  const cols = window.innerWidth >= 1024 ? 4 : window.innerWidth >= 640 ? 2 : 1;
+  catalogEl.querySelectorAll('.catalog-card-slot').forEach((slot, idx) => {
+    slot.style.setProperty('--card-col', String(idx % cols));
+  });
+}
 
 function initCatalogWaveReveal() {
   if (catalogWaveObserver) {
     catalogWaveObserver.disconnect();
     catalogWaveObserver = null;
   }
-  if (catalogScrollHandler) {
-    window.removeEventListener('scroll', catalogScrollHandler);
-    window.removeEventListener('resize', catalogScrollHandler);
-    catalogScrollHandler = null;
+  if (catalogResizeHandler) {
+    window.removeEventListener('resize', catalogResizeHandler);
+    catalogResizeHandler = null;
   }
 
   const catalogEl = document.getElementById('catalog');
   if (!catalogEl) return;
 
-  // 1. Header reveal when entering viewport
-  const headerTrigger = catalogEl.querySelector('.catalog-header-trigger');
-  if (headerTrigger) {
-    catalogWaveObserver = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          entry.target.classList.toggle('is-catalog-head-visible', entry.isIntersecting);
-        });
-      },
-      { threshold: 0.12 }
-    );
-    catalogWaveObserver.observe(headerTrigger);
-  }
+  applyCatalogColumnDelays();
+  catalogResizeHandler = () => applyCatalogColumnDelays();
+  window.addEventListener('resize', catalogResizeHandler, { passive: true });
 
-  // 2. Live scroll-driven 3D wave for cards & bottom CTA
-  let rafPending = false;
-
-  const updateCatalogCards = () => {
-    rafPending = false;
-    const cardSlots = catalogEl.querySelectorAll('.catalog-card-slot');
-    const ctaSlot = catalogEl.querySelector('.catalog-cta-slot');
-    const vh = window.innerHeight || 800;
-    const cols = window.innerWidth >= 1024 ? 4 : window.innerWidth >= 640 ? 2 : 1;
-
-    const animateSlot = (slot, col) => {
-      const target = slot.querySelector('.catalog-card-motion, .catalog-cta-motion') || slot;
-      const rect = slot.getBoundingClientRect();
-
-      // Starts rising as slot enters bottom of screen, settles smoothly by mid-screen
-      const startY = vh * 1.04;
-      const endY = vh * (0.56 - col * 0.06);
-      const raw = (startY - rect.top) / (startY - endY);
-      const progress = Math.max(0, Math.min(1, raw));
-      const eased = 1 - Math.pow(1 - progress, 3);
-
-      const yOffset = (1 - eased) * (105 + col * 24);
-      const rotX = (1 - eased) * 15;
-      const scale = 0.88 + eased * 0.12;
-      const opacity = Math.min(1, eased * 1.25);
-
-      target.style.opacity = opacity.toFixed(3);
-      target.style.transform = `translate3d(0, ${yOffset.toFixed(1)}px, 0) rotateX(${rotX.toFixed(2)}deg) scale(${scale.toFixed(3)})`;
-    };
-
-    cardSlots.forEach((slot, idx) => animateSlot(slot, idx % cols));
-    if (ctaSlot) animateSlot(ctaSlot, 0);
-  };
-
-  catalogScrollHandler = () => {
-    if (!rafPending) {
-      rafPending = true;
-      requestAnimationFrame(updateCatalogCards);
+  catalogWaveObserver = new IntersectionObserver(
+    (entries) => {
+      entries.forEach((entry) => {
+        const el = entry.target;
+        if (el.classList.contains('catalog-header-trigger')) {
+          el.classList.toggle('is-catalog-head-visible', entry.isIntersecting);
+        } else if (el.classList.contains('catalog-card-slot')) {
+          el.classList.toggle('is-card-visible', entry.isIntersecting);
+        } else if (el.classList.contains('catalog-cta-slot')) {
+          el.classList.toggle('is-cta-visible', entry.isIntersecting);
+        }
+      });
+    },
+    {
+      threshold: 0.12,
+      rootMargin: '0px 0px -45px 0px'
     }
-  };
+  );
 
-  window.addEventListener('scroll', catalogScrollHandler, { passive: true });
-  window.addEventListener('resize', catalogScrollHandler, { passive: true });
+  const headerTrigger = catalogEl.querySelector('.catalog-header-trigger');
+  if (headerTrigger) catalogWaveObserver.observe(headerTrigger);
 
-  // Set initial positions immediately on load/render
-  updateCatalogCards();
+  catalogEl.querySelectorAll('.catalog-card-slot').forEach((slot) => {
+    catalogWaveObserver.observe(slot);
+  });
+
+  const ctaSlot = catalogEl.querySelector('.catalog-cta-slot');
+  if (ctaSlot) catalogWaveObserver.observe(ctaSlot);
 }
 
 function render() {
@@ -3659,7 +3630,7 @@ function render() {
   initShowcaseMotion();
   initPromoMotion();
   initFeatureBannerMotion();
-  initCatalogWaveReveal()
+  initCatalogWaveReveal();
 }
 
 // ============================================================================
