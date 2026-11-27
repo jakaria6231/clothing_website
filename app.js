@@ -1480,24 +1480,29 @@ function renderStorefrontView() {
             </section>
 
             <!-- SECTION 4: CENTERED FEATURE STATEMENT BANNER -->
-            <section class="relative rounded-[28px] sm:rounded-[36px] border py-12 sm:py-16 px-5 overflow-hidden transition-colors duration-300 ${
+            <section id="feature-banner-section" class="relative rounded-[28px] sm:rounded-[36px] border py-12 sm:py-16 px-5 overflow-hidden transition-colors duration-300 ${
               isDark ? 'bg-[#121216] border-white/10' : 'bg-[#F4F5F7] border-white'
             }">
-              <div aria-hidden="true" class="pointer-events-none select-none absolute inset-0 flex flex-col items-center justify-center text-center leading-none">
-                <span class="font-display text-[11vw] font-extrabold uppercase tracking-[-0.04em] ${
+              <div aria-hidden="true" class="pointer-events-none select-none absolute inset-0 flex flex-col items-center justify-center text-center leading-none overflow-hidden">
+                <span id="feature-wm-top" class="font-display text-[11vw] font-extrabold uppercase tracking-[-0.04em] will-change-transform ${
                   isDark ? 'text-white/[0.03]' : 'text-[#E3E7EC]'
                 }">FRESH FITS</span>
-                <span class="font-display text-[11vw] font-extrabold uppercase tracking-[-0.04em] mt-4 ${
+                <span id="feature-wm-bottom" class="font-display text-[11vw] font-extrabold uppercase tracking-[-0.04em] mt-4 will-change-transform ${
                   isDark ? 'text-white/[0.03]' : 'text-[#E3E7EC]'
                 }">YOUR WORKOUT</span>
               </div>
 
-              <div class="scroll-reveal reveal-zoom relative z-10 max-w-md mx-auto">
+              <div id="feature-card-wrap" class="relative z-10 max-w-md mx-auto will-change-transform">
                 <div class="relative rounded-[30px] overflow-hidden aspect-[3/3.85] bg-[#16181B] shadow-2xl group">
-                  <img src="${escapeHtml(s.featureBannerImage)}" alt="${escapeHtml(s.featureBannerTitleLine1)}" class="w-full h-full object-cover opacity-85 group-hover:scale-105 transition-transform duration-700 ease-out" />
+                  <img
+                    id="feature-card-img"
+                    src="${escapeHtml(s.featureBannerImage)}"
+                    alt="${escapeHtml(s.featureBannerTitleLine1)}"
+                    class="w-full h-full object-cover opacity-85 will-change-transform"
+                  />
                   <div class="absolute inset-0 bg-gradient-to-b from-black/70 via-black/15 to-black/70"></div>
 
-                  <div class="absolute top-6 inset-x-6 text-center text-white">
+                  <div id="feature-card-text" class="absolute top-6 inset-x-6 text-center text-white will-change-transform">
                     <div class="flex justify-center mb-2">
                       ${renderBrandLogo(s.logoUrl, s.brandName, 'sm', false)}
                     </div>
@@ -1514,7 +1519,7 @@ function renderStorefrontView() {
                     }
                   </div>
 
-                  <div class="absolute bottom-6 inset-x-0 flex justify-center">
+                  <div id="feature-card-cta" class="absolute bottom-6 inset-x-0 flex justify-center will-change-transform">
                     <button data-action="filter-cat" data-cat="ALL" class="bg-white/95 hover:bg-white text-[#0A0A0A] font-ui text-[11px] font-bold uppercase tracking-[0.12em] px-6 py-2.5 rounded-full shadow-lg transition-all hover:scale-105 active:scale-95">
                       EXPLORE COLLECTION
                     </button>
@@ -3556,6 +3561,95 @@ function render() {
   initHeroMotion();
   initShowcaseMotion();
   initPromoMotion();
+  initFeatureBannerScrollAnim();
+}
+
+// ============================================================================
+// SECTION 4: SCROLL-LINKED FEATURE BANNER ANIMATION (SCROLL UP & DOWN)
+// ============================================================================
+let featureBannerScrollBound = false;
+
+function updateFeatureBannerScrollAnim() {
+  const section = document.getElementById('feature-banner-section');
+  if (!section) return;
+
+  const wmTop = document.getElementById('feature-wm-top');
+  const wmBottom = document.getElementById('feature-wm-bottom');
+  const cardWrap = document.getElementById('feature-card-wrap');
+  const cardImg = document.getElementById('feature-card-img');
+  const cardText = document.getElementById('feature-card-text');
+  const cardCta = document.getElementById('feature-card-cta');
+
+  const rect = section.getBoundingClientRect();
+  const vh = window.innerHeight || 800;
+
+  // Progress: 0 when section enters bottom of viewport, 1 when it leaves top
+  const rawProgress = (vh - rect.top) / (vh + rect.height);
+  const p = Math.max(0, Math.min(1, rawProgress));
+
+  // Entry progress: 0 -> 1 as section moves from bottom to center of screen
+  const entry = Math.max(0, Math.min(1, p / 0.52));
+  // Smooth cubic ease-out for entry
+  const easedEntry = 1 - Math.pow(1 - entry, 3);
+
+  // 1. Background watermark: opposing horizontal slide + subtle scale
+  const wmShift = (p - 0.5) * 140; // moves -70px to +70px
+  if (wmTop) {
+    wmTop.style.transform = `translate3d(${-wmShift}px, 0, 0) scale(${0.96 + easedEntry * 0.06})`;
+  }
+  if (wmBottom) {
+    wmBottom.style.transform = `translate3d(${wmShift}px, 0, 0) scale(${0.96 + easedEntry * 0.06})`;
+  }
+
+  // 2. Center card: smooth zoom-in and rise from bottom
+  const cardScale = 0.8 + easedEntry * 0.2; // 0.80 -> 1.00
+  const cardY = (1 - easedEntry) * 55; // 55px -> 0px
+  if (cardWrap) {
+    cardWrap.style.transform = `translate3d(0, ${cardY}px, 0) scale(${cardScale})`;
+    cardWrap.style.opacity = `${0.35 + easedEntry * 0.65}`;
+  }
+
+  // 3. Inner image: counter-zoom + subtle vertical parallax
+  const imgScale = 1.22 - easedEntry * 0.16; // 1.22 -> 1.06
+  const imgY = (p - 0.5) * -28;
+  if (cardImg) {
+    cardImg.style.transform = `translate3d(0, ${imgY}px, 0) scale(${imgScale})`;
+  }
+
+  // 4. Top text block: staggered reveal tied to scroll
+  const textP = Math.max(0, Math.min(1, (entry - 0.25) / 0.75));
+  const easedText = 1 - Math.pow(1 - textP, 3);
+  if (cardText) {
+    cardText.style.transform = `translate3d(0, ${(1 - easedText) * 28}px, 0)`;
+    cardText.style.opacity = `${easedText}`;
+  }
+
+  // 5. Bottom CTA button: staggered reveal tied to scroll
+  const ctaP = Math.max(0, Math.min(1, (entry - 0.4) / 0.6));
+  const easedCta = 1 - Math.pow(1 - ctaP, 3);
+  if (cardCta) {
+    cardCta.style.transform = `translate3d(0, ${(1 - easedCta) * 22}px, 0) scale(${0.92 + easedCta * 0.08})`;
+    cardCta.style.opacity = `${easedCta}`;
+  }
+}
+
+function initFeatureBannerScrollAnim() {
+  if (!featureBannerScrollBound) {
+    featureBannerScrollBound = true;
+    let ticking = false;
+    const onScrollOrResize = () => {
+      if (!ticking) {
+        ticking = true;
+        requestAnimationFrame(() => {
+          updateFeatureBannerScrollAnim();
+          ticking = false;
+        });
+      }
+    };
+    window.addEventListener('scroll', onScrollOrResize, { passive: true });
+    window.addEventListener('resize', onScrollOrResize, { passive: true });
+  }
+  updateFeatureBannerScrollAnim();
 }
 
 // ============================================================================
