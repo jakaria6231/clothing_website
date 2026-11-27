@@ -942,7 +942,7 @@ function renderProductCardHtml(product, categoryNameOverride = null) {
             ${escapeHtml(product.name)}
           </h3>
           <p class="font-ui text-[11px] font-semibold mt-0.5 ${isDark ? 'text-cyan-400' : 'text-[#6E7378]'}">
-            USD ${Number(product.price || 0).toFixed(2)}
+            BDT ${Number(product.price || 0).toFixed(2)}
           </p>
         </div>
         <button
@@ -1081,7 +1081,7 @@ function renderProductDetailsView(publishedProducts) {
                 ${escapeHtml(product.name)}
               </h1>
               <p class="font-ui text-xl sm:text-2xl font-bold mt-2 ${isDark ? 'text-cyan-400' : 'text-[#0A0A0A]'}">
-                USD ${Number(product.price || 0).toFixed(2)}
+                BDT ${Number(product.price || 0).toFixed(2)}
               </p>
             </div>
 
@@ -1941,7 +1941,7 @@ function renderModals() {
                         <div class="flex-1 min-w-0">
                           <h4 class="font-ui text-xs font-extrabold truncate">${escapeHtml(item.name)}</h4>
                           <p class="font-ui text-[11px] font-bold mt-0.5 ${isDark ? 'text-cyan-400' : 'text-[#525860]'}">
-                            USD ${(Number(item.price || 0) * (item.qty || 1)).toFixed(2)}
+                            BDT ${(Number(item.price || 0) * (item.qty || 1)).toFixed(2)}
                           </p>
                           <div class="flex items-center gap-2 mt-2">
                             <button type="button" data-action="bag-dec" data-id="${escapeHtml(item.id)}" class="w-6 h-6 rounded-lg flex items-center justify-center font-bold text-xs ${
@@ -1966,7 +1966,7 @@ function renderModals() {
                     <div class="flex items-center justify-between">
                       <span class="font-ui text-xs font-bold uppercase tracking-wider ${isDark ? 'text-zinc-400' : 'text-[#6E7378]'}">TOTAL AMOUNT</span>
                       <span class="font-display text-xl font-extrabold ${isDark ? 'text-cyan-400' : 'text-[#0A0A0A]'}">
-                        USD ${totalMoney.toFixed(2)}
+                        BDT ${totalMoney.toFixed(2)}
                       </span>
                     </div>
 
@@ -1997,10 +1997,10 @@ function renderModals() {
       const itemLines = items
         .map((it, i) => {
           const url = `${window.location.origin}${window.location.pathname}#product/${it.id}`;
-          return `${i + 1}. ${it.name} (x${it.qty || 1}) - USD ${(Number(it.price || 0) * (it.qty || 1)).toFixed(2)} (${url})`;
+          return `${i + 1}. ${it.name} (x${it.qty || 1}) - BDT ${(Number(it.price || 0) * (it.qty || 1)).toFixed(2)} (${url})`;
         })
         .join('\n');
-      inquiryMessage = `Hello ${s.brandName}! I would like to order the following items from my bag:\n${itemLines}\nTotal: USD ${total.toFixed(2)}. Please provide more information.`;
+      inquiryMessage = `Hello ${s.brandName}! I would like to order the following items from my bag:\n${itemLines}\nTotal: BDT ${total.toFixed(2)}. Please provide more information.`;
 
       selectedCardHtml = `
         <div class="p-3.5 rounded-2xl space-y-2 ${isDark ? 'bg-[#1B1B21]' : 'bg-[#F5F7F8]'}">
@@ -2009,7 +2009,7 @@ function renderModals() {
               SELECTED BAG ITEMS (${items.reduce((sum, it) => sum + (it.qty || 1), 0)})
             </span>
             <span class="font-ui text-xs font-extrabold ${isDark ? 'text-cyan-400' : 'text-[#0A0A0A]'}">
-              Total: USD ${total.toFixed(2)}
+              Total: BDT ${total.toFixed(2)}
             </span>
           </div>
           <div class="max-h-24 overflow-y-auto space-y-1.5 pr-1">
@@ -2018,7 +2018,7 @@ function renderModals() {
                 (it) => `
               <div class="flex items-center justify-between text-xs">
                 <span class="font-ui font-bold truncate pr-2">${escapeHtml(it.name)} ×${it.qty || 1}</span>
-                <span class="font-ui font-semibold shrink-0 opacity-80">USD ${(Number(it.price || 0) * (it.qty || 1)).toFixed(2)}</span>
+                <span class="font-ui font-semibold shrink-0 opacity-80">BDT ${(Number(it.price || 0) * (it.qty || 1)).toFixed(2)}</span>
               </div>
             `
               )
@@ -2037,7 +2037,7 @@ function renderModals() {
             <span class="font-ui text-[10px] font-bold uppercase tracking-wider ${isDark ? 'text-zinc-400' : 'text-[#6E7378]'}">SELECTED ITEM</span>
             <h3 class="font-ui text-sm font-extrabold truncate">${escapeHtml(product.name)}</h3>
             <p class="font-ui text-xs font-bold mt-0.5 ${isDark ? 'text-cyan-400' : 'text-[#0A0A0A]'}">
-              USD ${Number(product.price || 0).toFixed(2)}
+              BDT ${Number(product.price || 0).toFixed(2)}
             </p>
           </div>
         </div>
@@ -2476,7 +2476,7 @@ function renderDashboardView() {
                   <div class="min-w-0">
                     <h3 class="font-ui text-xs font-bold truncate">${escapeHtml(prod.name)}</h3>
                     <p class="text-[11px] ${isDark ? 'text-zinc-400' : 'text-[#6E7378]'}">
-                      ${escapeHtml(getCategoryName(prod.categoryId))} • USD ${Number(prod.price || 0).toFixed(2)}
+                      ${escapeHtml(getCategoryName(prod.categoryId))} • BDT ${Number(prod.price || 0).toFixed(2)}
                     </p>
                   </div>
                 </div>
@@ -2568,7 +2568,7 @@ function renderDashboardView() {
                       </div>
                     </td>
                     <td class="py-3.5 px-4 opacity-75">${escapeHtml(getCategoryName(prod.categoryId))}</td>
-                    <td class="py-3.5 px-4 font-ui font-bold">USD ${Number(prod.price || 0).toFixed(2)}</td>
+                    <td class="py-3.5 px-4 font-ui font-bold">BDT ${Number(prod.price || 0).toFixed(2)}</td>
                     <td class="py-3.5 px-4 text-[11px] opacity-65">${(prod.images || []).length} img • ${(prod.videos || []).length} vid</td>
                     <td class="py-3.5 px-4">
                       <button data-action="toggle-prod-visibility" data-id="${escapeHtml(prod.id)}" class="px-3 py-1 rounded-full font-ui text-[10px] font-bold uppercase transition-colors ${
@@ -2634,7 +2634,7 @@ function renderDashboardView() {
           </div>
           <div class="grid grid-cols-2 gap-3">
             <div>
-              <label class="block font-ui text-[11px] font-bold uppercase tracking-wider mb-1.5">Price (USD) *</label>
+              <label class="block font-ui text-[11px] font-bold uppercase tracking-wider mb-1.5">Price (BDT) *</label>
               <input id="pf-price" type="number" step="0.01" min="0" required value="${escapeHtml(pf.price)}" placeholder="120.00" class="${inputClass}" />
             </div>
             <div>
