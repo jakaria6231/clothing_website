@@ -311,7 +311,7 @@ body {
 }
 
 /* ==========================================================================
-   SECTION 3: 2-COLUMN EDITORIAL SPLIT (VIDEO-MATCHED REVEAL CHOREOGRAPHY)
+   SECTION 3: SLICED IMAGE STITCH REVEAL + POST-JOIN TEXT OVERLAY
    ========================================================================== */
 
 .promo-text-line {
@@ -332,29 +332,29 @@ body {
   will-change: transform, opacity;
 }
 
-.promo-card-reveal {
-  clip-path: inset(100% 0% 0% 0% round 28px);
-  transform: translateY(42px);
+/* Each vertical slice starts below the card and slides up to join together */
+.promo-slice {
+  transform: translateY(115%);
   opacity: 0;
   transition:
-    clip-path 1.05s cubic-bezier(0.22, 1, 0.36, 1),
-    transform 1.05s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.9s cubic-bezier(0.22, 1, 0.36, 1),
     opacity 0.55s ease-out;
-  will-change: clip-path, transform, opacity;
+  will-change: transform, opacity;
 }
 
-.promo-img-zoom {
-  transform: scale(1.16);
-  transition: transform 1.25s cubic-bezier(0.16, 1, 0.3, 1);
-  will-change: transform;
+/* Dark gradient, tag, headline, and arrow appear AFTER the slices join */
+.promo-overlay-fade {
+  opacity: 0;
+  transition: opacity 0.65s ease-out;
+  will-change: opacity;
 }
 
 .promo-tag-reveal {
   transform: translateY(-12px);
   opacity: 0;
   transition:
-    transform 0.65s cubic-bezier(0.16, 1, 0.3, 1),
-    opacity 0.65s ease-out;
+    transform 0.6s cubic-bezier(0.16, 1, 0.3, 1),
+    opacity 0.6s ease-out;
   will-change: transform, opacity;
 }
 
@@ -362,8 +362,8 @@ body {
   transform: translateY(108%);
   opacity: 0;
   transition:
-    transform 0.8s cubic-bezier(0.16, 1, 0.3, 1),
-    opacity 0.65s ease-out;
+    transform 0.75s cubic-bezier(0.16, 1, 0.3, 1),
+    opacity 0.6s ease-out;
   will-change: transform, opacity;
 }
 
@@ -371,28 +371,23 @@ body {
   transform: scale(0.6) translateY(14px);
   opacity: 0;
   transition:
-    transform 0.65s cubic-bezier(0.16, 1, 0.3, 1),
+    transform 0.6s cubic-bezier(0.16, 1, 0.3, 1),
     opacity 0.55s ease-out;
   will-change: transform, opacity;
 }
 
-/* Active state when Section 3 enters the viewport */
+/* Active state when #promo-section enters viewport */
 #promo-section.is-promo-visible .promo-text-line,
 #promo-section.is-promo-visible .promo-subtitle-fade,
+#promo-section.is-promo-visible .promo-slice,
 #promo-section.is-promo-visible .promo-tag-reveal,
 #promo-section.is-promo-visible .promo-card-title {
   transform: translateY(0);
   opacity: 1;
 }
 
-#promo-section.is-promo-visible .promo-card-reveal {
-  clip-path: inset(0% 0% 0% 0% round 28px);
-  transform: translateY(0);
+#promo-section.is-promo-visible .promo-overlay-fade {
   opacity: 1;
-}
-
-#promo-section.is-promo-visible .promo-img-zoom {
-  transform: scale(1);
 }
 
 #promo-section.is-promo-visible .promo-arrow-reveal {
