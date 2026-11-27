@@ -2229,22 +2229,7 @@ function renderOwnerLoginView() {
                 </button>
               </form>`
         }
-
-        <div class="rounded-2xl p-3.5 border flex items-center justify-between gap-2 ${
-          isDark ? 'bg-[#1B1B21] border-white/10' : 'bg-[#F5F7F8] border-black/5'
-        }">
-          <div class="text-[11px] opacity-85">
-            <span class="font-bold block">Owner Credentials:</span>
-            <span>${escapeHtml(storedEmail)} / ${isDefaultCreds ? 'RRWear2026!' : 'Custom Password'}</span>
-          </div>
-          ${
-            isDefaultCreds
-              ? `<button type="button" data-action="fill-demo-creds" class="px-3 py-1.5 rounded-full border font-ui text-[10px] font-bold uppercase transition-colors shrink-0 ${
-                  isDark ? 'bg-white/10 border-white/15 text-white hover:bg-white hover:text-black' : 'bg-white border-black/10 text-[#0A0A0A] hover:bg-black hover:text-white'
-                }">Fill</button>`
-              : ''
-          }
-        </div>
+        
       </div>
     </div>
   `;
