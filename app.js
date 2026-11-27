@@ -1421,61 +1421,59 @@ function renderStorefrontView() {
                       <span class="promo-text-line block" style="transition-delay: 90ms;">${escapeHtml(s.promoSectionTitleLine1)}</span>
                     </span>
                     <span class="block overflow-hidden pb-0.5">
-                      <span class="promo-text-line block" style="transition-delay: 190ms;">${escapeHtml(s.promoSectionTitleLine2)}</span>
+                      <span class="promo-text-line block" style="transition-delay: 180ms;">${escapeHtml(s.promoSectionTitleLine2)}</span>
                     </span>
                   </h2>
                 </div>
-                <p class="promo-subtitle-fade text-xs max-w-[270px] leading-relaxed ${isDark ? 'text-zinc-400' : 'text-[#5C636A]'}" style="transition-delay: 280ms;">
+                <p class="promo-subtitle-fade text-xs max-w-[270px] leading-relaxed ${isDark ? 'text-zinc-400' : 'text-[#5C636A]'}" style="transition-delay: 260ms;">
                   ${escapeHtml(s.promoSectionSubtitle)}
                 </p>
               </div>
 
               <div class="grid grid-cols-1 md:grid-cols-2 gap-5 sm:gap-6">
-                <div class="promo-card-reveal" style="transition-delay: 160ms;">
-                  <div data-action="filter-cat" data-cat="ALL" class="group relative rounded-[28px] overflow-hidden aspect-[4/4.3] bg-[#22252A] cursor-pointer shadow-md">
-                    <div class="promo-img-zoom w-full h-full" style="transition-delay: 160ms;">
-                      <img src="${escapeHtml(s.promoCard1Image)}" alt="${escapeHtml(s.promoCard1Title)}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-out" />
+                <!-- CARD 1 -->
+                <div data-action="filter-cat" data-cat="ALL" class="group relative rounded-[28px] overflow-hidden aspect-[4/4.3] bg-[#22252A] cursor-pointer shadow-md">
+                  <div class="w-full h-full grid grid-cols-5 group-hover:scale-105 transition-transform duration-700 ease-out">
+                    ${renderPromoSlices(s.promoCard1Image, s.promoCard1Title, 120, 5)}
+                  </div>
+                  <div class="promo-overlay-fade absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-black/15" style="transition-delay: 720ms;"></div>
+                  <span class="promo-tag-reveal absolute top-5 right-5 px-3.5 py-1.5 rounded-full bg-white/15 backdrop-blur-md text-white font-ui text-[10px] font-bold uppercase tracking-[0.12em] border border-white/20" style="transition-delay: 820ms;">
+                    ${escapeHtml(s.promoCard1Tag)}
+                  </span>
+                  <div class="absolute bottom-7 left-7 right-7 flex items-end justify-between gap-4">
+                    <div class="overflow-hidden max-w-[290px]">
+                      <h3 class="promo-card-title font-display text-white text-xl sm:text-2xl font-extrabold uppercase tracking-[-0.03em] leading-tight" style="transition-delay: 900ms;">
+                        ${escapeHtml(s.promoCard1Title)}
+                      </h3>
                     </div>
-                    <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-black/15"></div>
-                    <span class="promo-tag-reveal absolute top-5 right-5 px-3.5 py-1.5 rounded-full bg-white/15 backdrop-blur-md text-white font-ui text-[10px] font-bold uppercase tracking-[0.12em] border border-white/20" style="transition-delay: 520ms;">
-                      ${escapeHtml(s.promoCard1Tag)}
-                    </span>
-                    <div class="absolute bottom-7 left-7 right-7 flex items-end justify-between gap-4">
-                      <div class="overflow-hidden max-w-[290px]">
-                        <h3 class="promo-card-title font-display text-white text-xl sm:text-2xl font-extrabold uppercase tracking-[-0.03em] leading-tight" style="transition-delay: 600ms;">
-                          ${escapeHtml(s.promoCard1Title)}
-                        </h3>
-                      </div>
-                      <span class="promo-arrow-reveal shrink-0" style="transition-delay: 680ms;">
-                        <span class="w-11 h-11 rounded-full bg-white text-[#0A0A0A] flex items-center justify-center transition-transform duration-500 ease-out group-hover:translate-x-1 group-hover:-translate-y-1 group-hover:rotate-12 shadow-lg">
-                          <i data-lucide="arrow-up-right" class="w-4 h-4"></i>
-                        </span>
+                    <span class="promo-arrow-reveal shrink-0" style="transition-delay: 980ms;">
+                      <span class="w-11 h-11 rounded-full bg-white text-[#0A0A0A] flex items-center justify-center transition-transform duration-500 ease-out group-hover:translate-x-1 group-hover:-translate-y-1 group-hover:rotate-12 shadow-lg">
+                        <i data-lucide="arrow-up-right" class="w-4 h-4"></i>
                       </span>
-                    </div>
+                    </span>
                   </div>
                 </div>
 
-                <div class="promo-card-reveal" style="transition-delay: 380ms;">
-                  <div data-action="filter-cat" data-cat="ALL" class="group relative rounded-[28px] overflow-hidden aspect-[4/4.3] bg-[#1A1C1E] cursor-pointer shadow-md">
-                    <div class="promo-img-zoom w-full h-full" style="transition-delay: 380ms;">
-                      <img src="${escapeHtml(s.promoCard2Image)}" alt="${escapeHtml(s.promoCard2Title)}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-out" />
+                <!-- CARD 2 -->
+                <div data-action="filter-cat" data-cat="ALL" class="group relative rounded-[28px] overflow-hidden aspect-[4/4.3] bg-[#1A1C1E] cursor-pointer shadow-md">
+                  <div class="w-full h-full grid grid-cols-5 group-hover:scale-105 transition-transform duration-700 ease-out">
+                    ${renderPromoSlices(s.promoCard2Image, s.promoCard2Title, 320, 5)}
+                  </div>
+                  <div class="promo-overlay-fade absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-black/15" style="transition-delay: 920ms;"></div>
+                  <span class="promo-tag-reveal absolute top-5 right-5 px-3.5 py-1.5 rounded-full bg-white/15 backdrop-blur-md text-white font-ui text-[10px] font-bold uppercase tracking-[0.12em] border border-white/20" style="transition-delay: 1020ms;">
+                    ${escapeHtml(s.promoCard2Tag)}
+                  </span>
+                  <div class="absolute bottom-7 left-7 right-7 flex items-end justify-between gap-4">
+                    <div class="overflow-hidden max-w-[300px]">
+                      <h3 class="promo-card-title font-display text-white text-xl sm:text-2xl font-extrabold uppercase tracking-[-0.03em] leading-tight" style="transition-delay: 1100ms;">
+                        ${escapeHtml(s.promoCard2Title)}
+                      </h3>
                     </div>
-                    <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-black/15"></div>
-                    <span class="promo-tag-reveal absolute top-5 right-5 px-3.5 py-1.5 rounded-full bg-white/15 backdrop-blur-md text-white font-ui text-[10px] font-bold uppercase tracking-[0.12em] border border-white/20" style="transition-delay: 740ms;">
-                      ${escapeHtml(s.promoCard2Tag)}
-                    </span>
-                    <div class="absolute bottom-7 left-7 right-7 flex items-end justify-between gap-4">
-                      <div class="overflow-hidden max-w-[300px]">
-                        <h3 class="promo-card-title font-display text-white text-xl sm:text-2xl font-extrabold uppercase tracking-[-0.03em] leading-tight" style="transition-delay: 820ms;">
-                          ${escapeHtml(s.promoCard2Title)}
-                        </h3>
-                      </div>
-                      <span class="promo-arrow-reveal shrink-0" style="transition-delay: 900ms;">
-                        <span class="w-11 h-11 rounded-full bg-white text-[#0A0A0A] flex items-center justify-center transition-transform duration-500 ease-out group-hover:translate-x-1 group-hover:-translate-y-1 group-hover:rotate-12 shadow-lg">
-                          <i data-lucide="arrow-up-right" class="w-4 h-4"></i>
-                        </span>
+                    <span class="promo-arrow-reveal shrink-0" style="transition-delay: 1180ms;">
+                      <span class="w-11 h-11 rounded-full bg-white text-[#0A0A0A] flex items-center justify-center transition-transform duration-500 ease-out group-hover:translate-x-1 group-hover:-translate-y-1 group-hover:rotate-12 shadow-lg">
+                        <i data-lucide="arrow-up-right" class="w-4 h-4"></i>
                       </span>
-                    </div>
+                    </span>
                   </div>
                 </div>
               </div>
@@ -3520,6 +3518,24 @@ function initScrollReveals() {
     { threshold: 0.12, rootMargin: '0px 0px -30px 0px' }
   );
   document.querySelectorAll('.scroll-reveal').forEach((el) => scrollObserver.observe(el));
+}
+
+function renderPromoSlices(imageUrl, altText, baseDelay = 0, sliceCount = 5) {
+  return Array.from({ length: sliceCount }, (_, i) => {
+    const delay = baseDelay + i * 75;
+    const offsetPercent = -(i * 100);
+    return `
+      <div class="promo-slice relative h-full overflow-hidden" style="transition-delay: ${delay}ms;">
+        <img
+          src="${escapeHtml(imageUrl)}"
+          alt="${i === 0 ? escapeHtml(altText) : ''}"
+          aria-hidden="${i === 0 ? 'false' : 'true'}"
+          class="absolute top-0 h-full object-cover max-w-none pointer-events-none select-none"
+          style="width: ${sliceCount * 100}%; left: ${offsetPercent}%;"
+        />
+      </div>
+    `;
+  }).join('');
 }
 
 function render() {
