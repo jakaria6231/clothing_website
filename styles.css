@@ -309,3 +309,93 @@ body {
   opacity: 1;
   transform: translateY(0);
 }
+
+/* ==========================================================================
+   SECTION 3: 2-COLUMN EDITORIAL SPLIT (VIDEO-MATCHED REVEAL CHOREOGRAPHY)
+   ========================================================================== */
+
+.promo-text-line {
+  transform: translateY(112%);
+  opacity: 0;
+  transition:
+    transform 0.8s cubic-bezier(0.16, 1, 0.3, 1),
+    opacity 0.65s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: transform, opacity;
+}
+
+.promo-subtitle-fade {
+  transform: translateY(20px);
+  opacity: 0;
+  transition:
+    transform 0.8s cubic-bezier(0.16, 1, 0.3, 1),
+    opacity 0.75s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: transform, opacity;
+}
+
+.promo-card-reveal {
+  clip-path: inset(100% 0% 0% 0% round 28px);
+  transform: translateY(42px);
+  opacity: 0;
+  transition:
+    clip-path 1.05s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 1.05s cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 0.55s ease-out;
+  will-change: clip-path, transform, opacity;
+}
+
+.promo-img-zoom {
+  transform: scale(1.16);
+  transition: transform 1.25s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: transform;
+}
+
+.promo-tag-reveal {
+  transform: translateY(-12px);
+  opacity: 0;
+  transition:
+    transform 0.65s cubic-bezier(0.16, 1, 0.3, 1),
+    opacity 0.65s ease-out;
+  will-change: transform, opacity;
+}
+
+.promo-card-title {
+  transform: translateY(108%);
+  opacity: 0;
+  transition:
+    transform 0.8s cubic-bezier(0.16, 1, 0.3, 1),
+    opacity 0.65s ease-out;
+  will-change: transform, opacity;
+}
+
+.promo-arrow-reveal {
+  transform: scale(0.6) translateY(14px);
+  opacity: 0;
+  transition:
+    transform 0.65s cubic-bezier(0.16, 1, 0.3, 1),
+    opacity 0.55s ease-out;
+  will-change: transform, opacity;
+}
+
+/* Active state when Section 3 enters the viewport */
+#promo-section.is-promo-visible .promo-text-line,
+#promo-section.is-promo-visible .promo-subtitle-fade,
+#promo-section.is-promo-visible .promo-tag-reveal,
+#promo-section.is-promo-visible .promo-card-title {
+  transform: translateY(0);
+  opacity: 1;
+}
+
+#promo-section.is-promo-visible .promo-card-reveal {
+  clip-path: inset(0% 0% 0% 0% round 28px);
+  transform: translateY(0);
+  opacity: 1;
+}
+
+#promo-section.is-promo-visible .promo-img-zoom {
+  transform: scale(1);
+}
+
+#promo-section.is-promo-visible .promo-arrow-reveal {
+  transform: scale(1) translateY(0);
+  opacity: 1;
+}
