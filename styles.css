@@ -670,3 +670,98 @@ body {
   opacity: 1;
   transform: translateY(0) scale(1);
 }
+
+/* ==========================================================================
+   RESPONSIVE SAFETY LAYER (phones, small tablets, any screen width)
+   Added only to stop overlap / overflow. Does not change the design on desktop.
+   ========================================================================== */
+
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  overflow-x: hidden;
+}
+
+body {
+  max-width: 100%;
+  overflow-x: clip; /* clip = no sideways scroll, and sticky header keeps working */
+}
+
+/* Long words in the big headings wrap instead of running out of their box */
+.font-display {
+  overflow-wrap: anywhere;
+}
+
+/* Inputs / selects never push past their container */
+input,
+select,
+textarea {
+  max-width: 100%;
+}
+
+/* ---------- Header + dashboard top bar on phones ---------- */
+@media (max-width: 639px) {
+  /* Logo takes the free space between the menu button and the right buttons */
+  .rr-hdr-logo {
+    flex: 1 1 0%;
+    min-width: 0;
+    justify-content: flex-start;
+    overflow: hidden;
+  }
+
+  .rr-hdr-logo > div {
+    min-width: 0;
+    gap: 0.5rem;
+  }
+
+  /* Brand name: compact 2-line stack, can never sit on top of the buttons */
+  .rr-hdr-logo .font-display {
+    font-size: 11px;
+    line-height: 0.95;
+    text-align: left;
+    white-space: normal;
+    overflow-wrap: normal;
+    max-width: 4.5rem;
+  }
+
+  .rr-dash-topbar > div:first-child {
+    min-width: 0;
+  }
+
+  .rr-dash-topbar > div:last-child {
+    flex-shrink: 0;
+  }
+}
+
+/* Very narrow phones: logo icon only (the icon already carries the R&R mark) */
+@media (max-width: 399px) {
+  .rr-hdr-logo .font-display,
+  .rr-dash-topbar .font-display {
+    display: none;
+  }
+}
+
+/* ---------- Lookbook strip on phones ---------- */
+@media (max-width: 639px) {
+  /* Give the opened card more room so its text fits inside it */
+  .lookbook-card {
+    flex: 0.6 1 0%;
+  }
+
+  .lookbook-card.is-active {
+    flex: 4.8 1 0%;
+  }
+
+  /* Text block follows the card width instead of a fixed 210px (which got cut off) */
+  .lookbook-card .lookbook-details {
+    left: 0.75rem;
+    right: 0.75rem;
+    bottom: 0.875rem;
+    min-width: 0;
+  }
+
+  /* Show the text after the card has mostly finished opening (no re-wrapping flicker) */
+  .lookbook-card.is-active .lookbook-details {
+    transition-delay: 480ms;
+  }
+}
