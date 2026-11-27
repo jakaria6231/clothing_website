@@ -57,42 +57,35 @@ async function githubPutFile(path, base64Content, message) {
     throw new Error('GitHub Token not configured! Go to Owner Dashboard → Contact & Social Links to connect your GitHub Token.');
   }
 
+  let sha = undefined;
+  try {
+    const existing = await githubGetFile(path);
+    if (existing && existing.sha) sha = existing.sha;
+  } catch (e) {}
+
   const url = `https://api.github.com/repos/${GITHUB_CONFIG.owner}/${GITHUB_CONFIG.repo}/contents/${path}`;
-  let lastError = null;
+  const body = {
+    message,
+    content: base64Content,
+    branch: GITHUB_CONFIG.branch
+  };
+  if (sha) body.sha = sha;
 
-  // Retry a few times: if GitHub reports a sha conflict (409/422) we fetch a fresh sha and try again.
-  for (let attempt = 0; attempt < 3; attempt++) {
-    let sha = undefined;
-    try {
-      const existing = await githubGetFile(path);
-      if (existing && existing.sha) sha = existing.sha;
-    } catch (e) {}
+  const res = await fetch(url, {
+    method: 'PUT',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      Accept: 'application/vnd.github+json',
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(body)
+  });
 
-    const body = {
-      message,
-      content: base64Content,
-      branch: GITHUB_CONFIG.branch
-    };
-    if (sha) body.sha = sha;
-
-    const res = await fetch(url, {
-      method: 'PUT',
-      headers: {
-        Authorization: `Bearer ${token}`,
-        Accept: 'application/vnd.github+json',
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(body)
-    });
-
-    if (res.ok) return await res.json();
-
+  if (!res.ok) {
     const errData = await res.json().catch(() => ({}));
-    lastError = new Error(errData.message || `Failed to save ${path} to GitHub (${res.status})`);
-    if (res.status !== 409 && res.status !== 422) break;
-    await new Promise((resolve) => setTimeout(resolve, 500 * (attempt + 1)));
+    throw new Error(errData.message || `Failed to save ${path} to GitHub (${res.status})`);
   }
-  throw lastError;
+  return await res.json();
 }
 
 async function uploadMediaToGithub(base64DataUrl, originalFileName = 'media.jpg') {
@@ -110,14 +103,6 @@ async function uploadMediaToGithub(base64DataUrl, originalFileName = 'media.jpg'
 }
 
 async function persistStoreToGithub(commitMsg = 'Update store data from Owner Dashboard') {
-  // Safety: never write until we know what is really stored on GitHub, otherwise
-  // stale/default data could overwrite changes the owner already saved earlier.
-  if (!state.remoteStoreReady) {
-    throw new Error(
-      'Your saved store data has not loaded from GitHub yet, so saving was paused to protect it. Please refresh the page, wait a moment, and try again.'
-    );
-  }
-
   const storePayload = {
     siteSettings: state.siteSettings,
     categories: state.categories,
@@ -136,61 +121,6 @@ async function persistStoreToGithub(commitMsg = 'Update store data from Owner Da
 
   const encoded = utf8ToBase64(JSON.stringify(storePayload, null, 2));
   await githubPutFile(GITHUB_CONFIG.dataPath, encoded, commitMsg);
-
-  // Only after GitHub confirmed the save: remember exactly what was synced in this browser.
-  try {
-    localStorage.setItem('rr_wear_store_synced', JSON.stringify(storePayload));
-  } catch (e) {}
-}
-
-// Read the last copy this browser successfully synced to GitHub (null if none).
-function readLocalSyncedCopy() {
-  try {
-    const raw = localStorage.getItem('rr_wear_store_synced');
-    return raw ? JSON.parse(raw) : null;
-  } catch (e) {
-    return null;
-  }
-}
-
-// Fresh read of store.json straight from the GitHub API (not CDN-cached).
-async function readStoreViaApi() {
-  const token = getGithubToken();
-  const headers = { Accept: 'application/vnd.github.raw+json' };
-  if (token) headers.Authorization = `Bearer ${token}`;
-  const url = `https://api.github.com/repos/${GITHUB_CONFIG.owner}/${GITHUB_CONFIG.repo}/contents/${GITHUB_CONFIG.dataPath}?ref=${GITHUB_CONFIG.branch}&_t=${Date.now()}`;
-  const res = await fetch(url, { headers, cache: 'no-store' });
-  if (res.status === 404) return { status: 'missing' };
-  if (!res.ok) throw new Error(`GitHub API error (${res.status})`);
-  return { status: 'ok', data: await res.json() };
-}
-
-// Read of store.json from raw.githubusercontent.com (fast, no rate limit, but GitHub caches it for a few minutes).
-async function readStoreViaRaw() {
-  const url = `https://raw.githubusercontent.com/${GITHUB_CONFIG.owner}/${GITHUB_CONFIG.repo}/${GITHUB_CONFIG.branch}/${GITHUB_CONFIG.dataPath}?_t=${Date.now()}`;
-  const res = await fetch(url, { cache: 'no-store' });
-  if (res.status === 404) return { status: 'missing' };
-  if (!res.ok) throw new Error(`GitHub raw error (${res.status})`);
-  return { status: 'ok', data: await res.json() };
-}
-
-// Owner (token present) -> API first so the newest commit is always seen.
-// Visitors -> raw first (no API rate limit), API as fallback.
-async function fetchLatestStoreData() {
-  const readers = getGithubToken() ? [readStoreViaApi, readStoreViaRaw] : [readStoreViaRaw, readStoreViaApi];
-  let sawMissing = false;
-  let lastError = null;
-  for (const read of readers) {
-    try {
-      const result = await read();
-      if (result.status === 'ok') return result;
-      sawMissing = true;
-    } catch (err) {
-      lastError = err;
-    }
-  }
-  if (sawMissing) return { status: 'missing' };
-  throw lastError || new Error('Could not load store data from GitHub.');
 }
 
 // ============================================================================
@@ -283,7 +213,7 @@ function renderBrandLogo(logoUrl, brandName = 'R&R WEAR', size = 'md', darkText 
   const textColor = darkText ? 'text-[#0A0A0A]' : 'text-[#F8FAFC]';
 
   const mediaHtml = logoUrl
-    ? `<img src="${escapeHtml(logoUrl)}" alt="${escapeHtml(brandName)}" class="${iconSizes[size]} rounded-lg object-cover shadow-sm border border-black/10" />`
+    ? `<img src="${escapeHtml(logoUrl)}" alt="${escapeHtml(brandName)}" class="${iconSizes[size]} rounded-lg object-cover shadow-sm border border-black/10 shrink-0" />`
     : `<div class="${iconSizes[size]} rounded-lg bg-[#070B0E] flex items-center justify-center shadow-md border border-cyan-400/35 relative overflow-hidden shrink-0">
         <div class="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(0,229,255,0.32),transparent_70%)]"></div>
         <svg viewBox="0 0 100 100" class="w-[82%] h-[82%] relative z-10" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -313,15 +243,15 @@ function renderBrandLogo(logoUrl, brandName = 'R&R WEAR', size = 'md', darkText 
 }
 
 function renderWhatsAppIcon(cls = 'w-5 h-5') {
-  return `<svg viewBox="0 0 32 32" fill="currentColor" class="${cls}"><path d="M16.004 3.2c-7.06 0-12.8 5.74-12.8 12.8 0 2.256.59 4.458 1.71 6.4L3.1 28.8l6.58-1.726a12.75 12.75 0 0 0 6.324 1.676h.006c7.058 0 12.796-5.74 12.796-12.8 0-3.42-1.332-6.636-3.75-9.054A12.715 12.715 0 0 0 16.004 3.2zm0 23.388h-.004a10.6 10.6 0 0 1-5.404-1.48l-.388-.23-3.904 1.024 1.042-3.806-.252-.402a10.576 10.576 0 0 1-1.622-5.644c0-5.854 4.764-10.618 10.624-10.618 2.836 0 5.502 1.106 7.506 3.112a10.553 10.553 0 0 1 3.11 7.51c0 5.856-4.764 10.622-10.612 10.622zm5.826-7.954c-.32-.16-1.89-.932-2.182-1.038-.292-.106-.506-.16-.718.16-.214.32-.824 1.038-1.01 1.252-.186.212-.372.24-.692.08-.32-.16-1.35-.498-2.572-1.588-.95-.848-1.592-1.894-1.778-2.214-.186-.32-.02-.492.14-.652.144-.144.32-.372.48-.558.16-.186.212-.32.32-.532.106-.214.052-.4-.028-.56-.08-.16-.718-1.732-.984-2.372-.26-.622-.524-.538-.718-.548l-.612-.01c-.214 0-.56.08-.852.4-.292.32-1.118 1.092-1.118 2.664s1.144 3.09 1.304 3.304c.16.212 2.252 3.438 5.456 4.822.762.328 1.356.524 1.82.672.766.244 1.462.21 2.012.128.614-.092 1.89-.772 2.156-1.518.266-.746.266-1.384.186-1.518-.08-.132-.292-.212-.612-.372z" /></svg>`;
+  return `<svg viewBox="0 0 32 32" fill="currentColor" class="${cls} shrink-0"><path d="M16.004 3.2c-7.06 0-12.8 5.74-12.8 12.8 0 2.256.59 4.458 1.71 6.4L3.1 28.8l6.58-1.726a12.75 12.75 0 0 0 6.324 1.676h.006c7.058 0 12.796-5.74 12.796-12.8 0-3.42-1.332-6.636-3.75-9.054A12.715 12.715 0 0 0 16.004 3.2zm0 23.388h-.004a10.6 10.6 0 0 1-5.404-1.48l-.388-.23-3.904 1.024 1.042-3.806-.252-.402a10.576 10.576 0 0 1-1.622-5.644c0-5.854 4.764-10.618 10.624-10.618 2.836 0 5.502 1.106 7.506 3.112a10.553 10.553 0 0 1 3.11 7.51c0 5.856-4.764 10.622-10.612 10.622zm5.826-7.954c-.32-.16-1.89-.932-2.182-1.038-.292-.106-.506-.16-.718.16-.214.32-.824 1.038-1.01 1.252-.186.212-.372.24-.692.08-.32-.16-1.35-.498-2.572-1.588-.95-.848-1.592-1.894-1.778-2.214-.186-.32-.02-.492.14-.652.144-.144.32-.372.48-.558.16-.186.212-.32.32-.532.106-.214.052-.4-.028-.56-.08-.16-.718-1.732-.984-2.372-.26-.622-.524-.538-.718-.548l-.612-.01c-.214 0-.56.08-.852.4-.292.32-1.118 1.092-1.118 2.664s1.144 3.09 1.304 3.304c.16.212 2.252 3.438 5.456 4.822.762.328 1.356.524 1.82.672.766.244 1.462.21 2.012.128.614-.092 1.89-.772 2.156-1.518.266-.746.266-1.384.186-1.518-.08-.132-.292-.212-.612-.372z" /></svg>`;
 }
 
-function renderTelegramIcon(cls = 'w-5 h-5') {
-  return `<svg viewBox="0 0 32 32" fill="currentColor" class="${cls}"><path d="M27.66 5.486a1.6 1.6 0 0 0-1.66-.244L4.236 13.79a1.6 1.6 0 0 0 .108 3.014l5.492 1.786 2.118 6.678a1.4 1.4 0 0 0 2.332.574l3.152-3.09 5.834 4.294a1.6 1.6 0 0 0 2.512-.956l3.32-19.01a1.6 1.6 0 0 0-1.444-1.594zM12.39 18.08l11.21-7.17-8.79 8.79-.42 4.13-1.69-5.32-.31-.43z" /></svg>`;
+function renderInstagramIcon(cls = 'w-5 h-5') {
+  return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="${cls} shrink-0"><rect x="2" y="2" width="20" height="20" rx="5" ry="5" /><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" /><line x1="17.5" y1="6.5" x2="17.51" y2="6.5" /></svg>`;
 }
 
 function renderMessengerIcon(cls = 'w-5 h-5') {
-  return `<svg viewBox="0 0 32 32" fill="currentColor" class="${cls}"><path d="M16 3.2C8.82 3.2 3.2 8.46 3.2 15.24c0 3.74 1.72 7.06 4.44 9.26v4.3l4.06-2.24c1.36.38 2.8.58 4.3.58 7.18 0 12.8-5.26 12.8-12.04S23.18 3.2 16 3.2zm1.28 16.18-3.26-3.48-6.36 3.48 7-7.42 3.34 3.48 6.28-3.48-7 7.42z" /></svg>`;
+  return `<svg viewBox="0 0 32 32" fill="currentColor" class="${cls} shrink-0"><path d="M16 3.2C8.82 3.2 3.2 8.46 3.2 15.24c0 3.74 1.72 7.06 4.44 9.26v4.3l4.06-2.24c1.36.38 2.8.58 4.3.58 7.18 0 12.8-5.26 12.8-12.04S23.18 3.2 16 3.2zm1.28 16.18-3.26-3.48-6.36 3.48 7-7.42 3.34 3.48 6.28-3.48-7 7.42z" /></svg>`;
 }
 
 // ============================================================================
@@ -407,7 +337,7 @@ const DEFAULT_SITE_SETTINGS = {
   lookbookSectionTitle: 'SEASONAL LOOKBOOK ARCHIVE',
   lookbookCards: DEFAULT_LOOKBOOK_CARDS,
   whatsappNumber: '8801700000000',
-  telegramUsername: 'rrwear_official',
+  instagramUsername: 'rrwear_official',
   messengerUsername: 'rrwear.official'
 };
 
@@ -610,35 +540,17 @@ function saveBagToStorage(bag) {
   } catch (e) {}
 }
 
-// Remember the visitor's Light/Dark choice so a page refresh keeps it.
-function loadSavedTheme() {
-  try {
-    return localStorage.getItem('rr_wear_theme') === 'dark' ? 'dark' : 'light';
-  } catch (e) {
-    return 'light';
-  }
-}
-
-function saveTheme(theme) {
-  try {
-    localStorage.setItem('rr_wear_theme', theme === 'dark' ? 'dark' : 'light');
-  } catch (e) {}
-}
-
 // ============================================================================
 // 5. GLOBAL APPLICATION STATE
 // ============================================================================
-let storeLoadPromise = Promise.resolve();
-
 const state = {
-  theme: loadSavedTheme(),
+  theme: 'light',
   isOwnerAuthenticated: sessionStorage.getItem('rr_wear_owner_auth') === 'true',
   ownerAuthRecord: null,
   siteSettings: { ...DEFAULT_SITE_SETTINGS },
   categories: [...DEFAULT_CATEGORIES],
   products: [...DEFAULT_PRODUCTS],
   isDataLoaded: false,
-  remoteStoreReady: false, // true only once the real GitHub store state is known (protects against overwriting)
   isSavingToGithub: false,
 
   // Customer Shopping Bag State
@@ -736,7 +648,7 @@ function showToast(message, type = 'success') {
   const root = document.getElementById('toast-root');
   if (!root) return;
   root.innerHTML = `
-    <div class="fixed bottom-5 right-5 z-50 max-w-sm bg-[#0A0A0A] text-white px-4 py-3 rounded-2xl shadow-2xl border border-white/15 flex items-center gap-3 text-xs font-ui font-medium animate-modal-in">
+    <div class="fixed bottom-5 right-5 z-50 max-w-[min(24rem,calc(100vw-2.5rem))] bg-[#0A0A0A] text-white px-4 py-3 rounded-2xl shadow-2xl border border-white/15 flex items-center gap-3 text-xs font-ui font-medium animate-modal-in">
       <span class="w-2 h-2 rounded-full shrink-0 ${type === 'error' ? 'bg-red-400' : 'bg-cyan-400'}"></span>
       <span class="flex-1">${escapeHtml(message)}</span>
       <button data-action="close-toast" class="text-white/60 hover:text-white">
@@ -780,27 +692,31 @@ function applyStorePayload(data) {
 
 async function initStoreFromGithub() {
   try {
-    // 1. Load the live store from GitHub. Owners read through the API (always the newest commit),
-    //    visitors read raw.githubusercontent.com first with the API as fallback.
-    const result = await fetchLatestStoreData();
-    let payload = result.status === 'ok' ? result.data : null;
+    // 1. Load directly from GitHub Raw / API so every visitor & page refresh sees permanent changes
+    const rawUrl = `https://raw.githubusercontent.com/${GITHUB_CONFIG.owner}/${GITHUB_CONFIG.repo}/${GITHUB_CONFIG.branch}/${GITHUB_CONFIG.dataPath}?_t=${Date.now()}`;
+    let loaded = false;
 
-    // We now know the true GitHub state (either real data, or confirmed "no file yet"), so saving is safe.
-    state.remoteStoreReady = true;
-
-    // 2. If GitHub's cache returned an older copy than the one THIS browser last saved successfully,
-    //    use the newer one so the owner never sees their own saved edits "disappear" after a refresh.
-    const synced = readLocalSyncedCopy();
-    if (synced && (!payload || (synced.updatedAt || 0) > (payload.updatedAt || 0))) {
-      payload = synced;
+    const rawRes = await fetch(rawUrl, { cache: 'no-store' });
+    if (rawRes.ok) {
+      const jsonData = await rawRes.json();
+      applyStorePayload(jsonData);
+      loaded = true;
+    } else {
+      // Fallback to GitHub Contents API (useful immediately after a commit before CDN refreshes)
+      const apiFile = await githubGetFile(GITHUB_CONFIG.dataPath);
+      if (apiFile && apiFile.content) {
+        const jsonData = JSON.parse(base64ToUtf8(apiFile.content));
+        applyStorePayload(jsonData);
+        loaded = true;
+      }
     }
 
-    if (!payload) {
+    if (!loaded) {
       const backupRaw = localStorage.getItem('rr_wear_store_backup');
-      if (backupRaw) payload = JSON.parse(backupRaw);
+      if (backupRaw) {
+        applyStorePayload(JSON.parse(backupRaw));
+      }
     }
-
-    if (payload) applyStorePayload(payload);
   } catch (err) {
     console.warn('GitHub store load notice:', err);
     try {
@@ -910,22 +826,22 @@ function renderProductCardHtml(product, categoryNameOverride = null) {
       ></div>
 
       <!-- Top-Right Floating Pills -->
-      <div class="absolute top-3.5 right-3.5 z-10 flex items-center gap-1.5">
+      <div class="absolute top-3.5 right-3.5 z-10 flex items-center gap-1.5 max-w-[calc(100%-1.75rem)]">
         ${
           hasVideo
-            ? `<span title="Includes Product Video" class="w-7 h-7 rounded-full bg-black/75 backdrop-blur-md text-cyan-300 flex items-center justify-center shadow-sm">
+            ? `<span title="Includes Product Video" class="w-7 h-7 shrink-0 rounded-full bg-black/75 backdrop-blur-md text-cyan-300 flex items-center justify-center shadow-sm">
                 <i data-lucide="video" class="w-3.5 h-3.5"></i>
               </span>`
             : ''
         }
-        <span class="px-3 py-1 rounded-full bg-white/95 backdrop-blur-md text-[#0A0A0A] font-ui text-[10px] font-bold uppercase tracking-wider shadow-sm">
+        <span class="min-w-0 truncate px-3 py-1 rounded-full bg-white/95 backdrop-blur-md text-[#0A0A0A] font-ui text-[10px] font-bold uppercase tracking-wider shadow-sm">
           ${escapeHtml(catName)}
         </span>
         <button
           data-action="open-product"
           data-id="${escapeHtml(product.id)}"
           title="View Product Details"
-          class="w-7 h-7 rounded-full bg-white/95 hover:bg-white text-[#0A0A0A] flex items-center justify-center shadow-sm transition-transform hover:scale-110"
+          class="w-7 h-7 shrink-0 rounded-full bg-white/95 hover:bg-white text-[#0A0A0A] flex items-center justify-center shadow-sm transition-transform hover:scale-110"
         >
           <i data-lucide="eye" class="w-3.5 h-3.5"></i>
         </button>
@@ -942,7 +858,7 @@ function renderProductCardHtml(product, categoryNameOverride = null) {
             ${escapeHtml(product.name)}
           </h3>
           <p class="font-ui text-[11px] font-semibold mt-0.5 ${isDark ? 'text-cyan-400' : 'text-[#6E7378]'}">
-            BDT ${Number(product.price || 0).toFixed(2)}
+            USD ${Number(product.price || 0).toFixed(2)}
           </p>
         </div>
         <button
@@ -993,14 +909,14 @@ function renderProductDetailsView(publishedProducts) {
   return `
     <div class="space-y-6 animate-modal-in">
       <!-- Breadcrumb Bar -->
-      <div class="rounded-full px-5 py-3 flex items-center justify-between shadow-sm border ${
+      <div class="rounded-full px-4 sm:px-5 py-3 gap-3 flex items-center justify-between shadow-sm border ${
         isDark ? 'bg-[#121216] border-white/10' : 'bg-white border-white'
       }">
-        <button data-action="nav-home" class="inline-flex items-center gap-2 font-ui text-xs font-bold uppercase tracking-wider hover:opacity-70 transition-opacity">
+        <button data-action="nav-home" class="inline-flex items-center gap-2 shrink-0 whitespace-nowrap font-ui text-xs font-bold uppercase tracking-wider hover:opacity-70 transition-opacity">
           <i data-lucide="arrow-left" class="w-4 h-4"></i>
           BACK TO STORE
         </button>
-        <span class="font-ui text-[11px] font-semibold uppercase tracking-wider ${isDark ? 'text-zinc-400' : 'text-[#6E7378]'}">
+        <span class="min-w-0 truncate text-right font-ui text-[11px] font-semibold uppercase tracking-wider ${isDark ? 'text-zinc-400' : 'text-[#6E7378]'}">
           ${escapeHtml(categoryName)} / ${escapeHtml(product.name)}
         </span>
       </div>
@@ -1077,11 +993,11 @@ function renderProductDetailsView(publishedProducts) {
             </div>
 
             <div>
-              <h1 class="font-display text-2xl sm:text-4xl font-extrabold uppercase tracking-[-0.03em] leading-tight">
+              <h1 class="font-display text-[clamp(1.05rem,6.3vw,1.5rem)] sm:text-4xl font-extrabold uppercase tracking-[-0.03em] leading-tight">
                 ${escapeHtml(product.name)}
               </h1>
               <p class="font-ui text-xl sm:text-2xl font-bold mt-2 ${isDark ? 'text-cyan-400' : 'text-[#0A0A0A]'}">
-                BDT ${Number(product.price || 0).toFixed(2)}
+                USD ${Number(product.price || 0).toFixed(2)}
               </p>
             </div>
 
@@ -1097,11 +1013,11 @@ function renderProductDetailsView(publishedProducts) {
                       ${product.specifications
                         .map(
                           (spec) => `
-                        <div class="flex items-center justify-between text-xs border-b last:border-0 pb-2 last:pb-0 ${
+                        <div class="flex items-start justify-between gap-3 text-xs border-b last:border-0 pb-2 last:pb-0 ${
                           isDark ? 'border-white/5' : 'border-black/5'
                         }">
                           <span class="${isDark ? 'text-zinc-400' : 'text-[#6E7378]'}">${escapeHtml(spec.label)}</span>
-                          <span class="font-ui font-bold">${escapeHtml(spec.value)}</span>
+                          <span class="font-ui font-bold text-right min-w-0 break-words">${escapeHtml(spec.value)}</span>
                         </div>
                       `
                         )
@@ -1120,7 +1036,7 @@ function renderProductDetailsView(publishedProducts) {
               <i data-lucide="arrow-up-right" class="w-4 h-4"></i>
             </button>
             <p class="text-[11px] text-center ${isDark ? 'text-zinc-400' : 'text-[#6E7378]'}">
-              Instant direct ordering via WhatsApp, Telegram, or Facebook Messenger.
+              Instant direct ordering via WhatsApp, Instagram, or Facebook Messenger.
             </p>
           </div>
         </div>
@@ -1131,7 +1047,7 @@ function renderProductDetailsView(publishedProducts) {
           ? `<div class="rounded-[32px] p-6 sm:p-10 border space-y-6 ${
               isDark ? 'bg-[#121216] border-white/10' : 'bg-[#F4F5F7] border-white'
             }">
-              <h2 class="font-display text-xl sm:text-2xl font-extrabold uppercase tracking-[-0.02em]">
+              <h2 class="font-display text-[clamp(.95rem,5.4vw,1.25rem)] sm:text-2xl font-extrabold uppercase tracking-[-0.02em]">
                 MORE PERFORMANCE GEAR
               </h2>
               <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
@@ -1162,8 +1078,8 @@ function renderStorefrontView() {
 
   const lookbookCards = s.lookbookCards || DEFAULT_LOOKBOOK_CARDS;
   const cleanPhone = (s.whatsappNumber || '').replace(/[^0-9]/g, '');
-  const rawTg = (s.telegramUsername || '').trim();
-  const tgHref = rawTg.startsWith('http') ? rawTg : `https://t.me/${rawTg.replace(/^@/, '')}`;
+  const rawIg = (s.instagramUsername || '').trim();
+  const igHref = rawIg.startsWith('http') ? rawIg : `https://ig.me/m/${rawIg.replace(/^@/, '')}`;
   const rawMsg = (s.messengerUsername || '').trim();
   const msgHref = rawMsg.startsWith('http') ? rawMsg : `https://m.me/${rawMsg.replace(/^@/, '')}`;
 
@@ -1176,7 +1092,7 @@ function renderStorefrontView() {
       <div class="max-w-[1440px] mx-auto px-2.5 sm:px-5 py-2.5 sm:py-4 space-y-5 sm:space-y-7">
         <!-- STICKY ARCHITECTURAL HEADER -->
         <header class="sticky top-2.5 z-40 ${!state.heroAnimPlayed ? 'animate-nav-drop' : ''}">
-          <div class="backdrop-blur-xl rounded-full px-4 sm:px-7 py-2.5 border flex items-center justify-between relative transition-colors duration-300 ${
+          <div class="rr-hdr-bar backdrop-blur-xl rounded-full px-2.5 sm:px-7 py-2 sm:py-2.5 gap-1.5 sm:gap-3 border flex items-center justify-between relative transition-colors duration-300 ${
             isDark
               ? 'bg-[#121216]/85 border-white/10 shadow-[0_8px_30px_rgba(0,0,0,0.45)]'
               : 'bg-white/85 border-white/80 shadow-[0_8px_30px_rgba(0,0,0,0.04)]'
@@ -1219,19 +1135,19 @@ function renderStorefrontView() {
             </nav>
 
             <!-- Mobile Hamburger -->
-            <button data-action="toggle-mobile-menu" class="lg:hidden p-2 rounded-full transition-colors ${
+            <button data-action="toggle-mobile-menu" class="lg:hidden shrink-0 p-1.5 sm:p-2 rounded-full transition-colors ${
               isDark ? 'hover:bg-white/10 text-white' : 'hover:bg-black/5 text-[#0A0A0A]'
             }" aria-label="Toggle Menu">
               <i data-lucide="${state.mobileMenuOpen ? 'x' : 'menu'}" class="w-5 h-5"></i>
             </button>
 
             <!-- Center Brand Logo -->
-            <button data-action="nav-home" class="lg:absolute lg:left-1/2 lg:-translate-x-1/2 flex items-center justify-center focus:outline-none">
+            <button data-action="nav-home" class="rr-hdr-logo lg:absolute lg:left-1/2 lg:-translate-x-1/2 flex items-center justify-center focus:outline-none">
               ${renderBrandLogo(s.logoUrl, s.brandName, 'md', !isDark)}
             </button>
 
             <!-- Right Controls -->
-            <div class="flex items-center gap-2 sm:gap-3">
+            <div class="flex items-center gap-1 sm:gap-3 shrink-0">
               <div class="hidden xl:flex items-center gap-5 mr-2 font-ui text-[11px] font-semibold tracking-[0.1em] uppercase">
                 ${state.categories
                   .slice(3, 5)
@@ -1253,13 +1169,13 @@ function renderStorefrontView() {
                   .join('')}
               </div>
 
-              <button data-action="focus-search" title="Search Gear" class="w-9 h-9 rounded-full flex items-center justify-center transition-all ${
+              <button data-action="focus-search" title="Search Gear" class="w-8 h-8 sm:w-9 sm:h-9 shrink-0 rounded-full flex items-center justify-center transition-all ${
                 isDark ? 'bg-white/10 hover:bg-white/20 text-white' : 'bg-[#F1F3F5] hover:bg-black/10 text-[#0A0A0A]'
               }">
                 <i data-lucide="search" class="w-4 h-4"></i>
               </button>
 
-              <button data-action="toggle-theme" title="${isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode'}" class="w-9 h-9 rounded-full flex items-center justify-center transition-all border ${
+              <button data-action="toggle-theme" title="${isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode'}" class="w-8 h-8 sm:w-9 sm:h-9 shrink-0 rounded-full flex items-center justify-center transition-all border ${
                 isDark
                   ? 'bg-[#1B1B21] border-white/15 text-amber-300 hover:bg-white/15'
                   : 'bg-[#F1F3F5] border-black/5 text-[#0A0A0A] hover:bg-black/10'
@@ -1267,13 +1183,13 @@ function renderStorefrontView() {
                 <i data-lucide="${isDark ? 'sun' : 'moon'}" class="w-4 h-4"></i>
               </button>
 
-              <div class="flex items-center gap-1.5">
-                <button data-action="nav-portal" class="font-ui text-[11px] font-bold tracking-[0.1em] uppercase px-4 sm:px-5 py-2.5 rounded-full transition-all shadow-sm active:scale-95 ${
+              <div class="flex items-center gap-1 sm:gap-1.5 shrink-0">
+                <button data-action="nav-portal" class="font-ui text-[10px] sm:text-[11px] font-bold tracking-[0.06em] sm:tracking-[0.1em] uppercase px-2.5 sm:px-5 py-2 sm:py-2.5 rounded-full transition-all shadow-sm active:scale-95 whitespace-nowrap ${
                   isDark ? 'bg-white text-[#09090B] hover:bg-zinc-200' : 'bg-[#0A0A0A] text-white hover:bg-[#272A2E]'
                 }">
                   ${state.isOwnerAuthenticated ? 'DASHBOARD' : 'LOGIN'}
                 </button>
-                <button data-action="open-bag" title="Your Shopping Bag" class="relative flex w-9 h-9 rounded-full items-center justify-center transition-all shadow-sm active:scale-95 ${
+                <button data-action="open-bag" title="Your Shopping Bag" class="relative flex w-8 h-8 sm:w-9 sm:h-9 shrink-0 rounded-full items-center justify-center transition-all shadow-sm active:scale-95 ${
                   isDark ? 'bg-white text-[#09090B] hover:bg-zinc-200' : 'bg-[#0A0A0A] text-white hover:bg-[#272A2E]'
                 }">
                   <i data-lucide="shopping-bag" class="w-4 h-4 pointer-events-none"></i>
@@ -1328,7 +1244,7 @@ function renderStorefrontView() {
                 : 'bg-gradient-to-b from-[#CFDBE0] via-[#E5ECEF] to-[#F5F7F8] border-white'
             }">
               <div class="relative z-20 text-center max-w-5xl mx-auto">
-                <h1 class="font-display text-3xl sm:text-5xl md:text-[64px] font-extrabold uppercase tracking-[-0.04em] leading-[0.98] ${
+                <h1 class="font-display text-[clamp(1.5rem,7.8vw,1.875rem)] sm:text-5xl md:text-[64px] font-extrabold uppercase tracking-[-0.04em] leading-[0.98] ${
                   isDark ? 'text-white' : 'text-[#0A0A0A]'
                 }">
                   <span class="block overflow-hidden pb-1">
@@ -1340,12 +1256,12 @@ function renderStorefrontView() {
                 </h1>
 
                 <div class="mt-6 flex flex-wrap items-center justify-center gap-3 animate-hero-cta">
-                  <button data-action="filter-cat" data-cat="ALL" class="font-ui text-[11px] font-bold uppercase tracking-[0.12em] px-8 py-3.5 rounded-full transition-all shadow-md hover:shadow-xl hover:-translate-y-0.5 active:scale-95 ${
+                  <button data-action="filter-cat" data-cat="ALL" class="font-ui text-[11px] font-bold uppercase tracking-[0.12em] px-6 sm:px-8 py-3.5 rounded-full whitespace-nowrap transition-all shadow-md hover:shadow-xl hover:-translate-y-0.5 active:scale-95 ${
                     isDark ? 'bg-white text-[#09090B] hover:bg-zinc-200' : 'bg-[#0A0A0A] text-white hover:bg-[#22252A]'
                   }">
                     ${escapeHtml(s.heroPrimaryBtnText || 'SHOP NOW')}
                   </button>
-                  <button data-action="filter-cat" data-cat="ALL" class="font-ui text-[11px] font-bold uppercase tracking-[0.12em] px-8 py-3.5 rounded-full transition-all shadow-sm hover:-translate-y-0.5 active:scale-95 border ${
+                  <button data-action="filter-cat" data-cat="ALL" class="font-ui text-[11px] font-bold uppercase tracking-[0.12em] px-6 sm:px-8 py-3.5 rounded-full whitespace-nowrap transition-all shadow-sm hover:-translate-y-0.5 active:scale-95 border ${
                     isDark
                       ? 'bg-white/10 hover:bg-white/15 text-white border-white/15 backdrop-blur-md'
                       : 'bg-white hover:bg-[#F8FAFB] text-[#0A0A0A] border-black/5'
@@ -1498,7 +1414,7 @@ function renderStorefrontView() {
                       isDark ? 'text-cyan-400' : 'text-[#6E7378]'
                     }" style="transition-delay: 0ms;">OUTERWEAR</span>
                   </span>
-                  <h2 class="font-display text-2xl sm:text-4xl font-extrabold uppercase tracking-[-0.035em] leading-[1.03] ${
+                  <h2 class="font-display text-[clamp(1rem,5.6vw,1.5rem)] sm:text-4xl font-extrabold uppercase tracking-[-0.035em] leading-[1.03] ${
                     isDark ? 'text-white' : 'text-[#0A0A0A]'
                   }">
                     <span class="block overflow-hidden pb-0.5">
@@ -1521,17 +1437,17 @@ function renderStorefrontView() {
                     ${renderPromoSlices(s.promoCard1Image, s.promoCard1Title, 120, 5)}
                   </div>
                   <div class="promo-overlay-fade absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-black/15" style="transition-delay: 720ms;"></div>
-                  <span class="promo-tag-reveal absolute top-5 right-5 px-3.5 py-1.5 rounded-full bg-white/15 backdrop-blur-md text-white font-ui text-[10px] font-bold uppercase tracking-[0.12em] border border-white/20" style="transition-delay: 820ms;">
+                  <span class="promo-tag-reveal absolute top-4 right-4 sm:top-5 sm:right-5 max-w-[calc(100%-2rem)] truncate px-3.5 py-1.5 rounded-full bg-white/15 backdrop-blur-md text-white font-ui text-[10px] font-bold uppercase tracking-[0.12em] border border-white/20" style="transition-delay: 820ms;">
                     ${escapeHtml(s.promoCard1Tag)}
                   </span>
-                  <div class="absolute bottom-7 left-7 right-7 flex items-end justify-between gap-4">
-                    <div class="overflow-hidden max-w-[290px]">
-                      <h3 class="promo-card-title font-display text-white text-xl sm:text-2xl font-extrabold uppercase tracking-[-0.03em] leading-tight" style="transition-delay: 900ms;">
+                  <div class="absolute bottom-5 left-5 right-5 sm:bottom-7 sm:left-7 sm:right-7 flex items-end justify-between gap-3 sm:gap-4">
+                    <div class="overflow-hidden min-w-0 max-w-[290px]">
+                      <h3 class="promo-card-title font-display text-white text-[clamp(.7rem,3.9vw,1.25rem)] sm:text-2xl font-extrabold uppercase tracking-[-0.03em] leading-tight" style="transition-delay: 900ms;">
                         ${escapeHtml(s.promoCard1Title)}
                       </h3>
                     </div>
                     <span class="promo-arrow-reveal shrink-0" style="transition-delay: 980ms;">
-                      <span class="w-11 h-11 rounded-full bg-white text-[#0A0A0A] flex items-center justify-center transition-transform duration-500 ease-out group-hover:translate-x-1 group-hover:-translate-y-1 group-hover:rotate-12 shadow-lg">
+                      <span class="w-9 h-9 sm:w-11 sm:h-11 rounded-full bg-white text-[#0A0A0A] flex items-center justify-center transition-transform duration-500 ease-out group-hover:translate-x-1 group-hover:-translate-y-1 group-hover:rotate-12 shadow-lg">
                         <i data-lucide="arrow-up-right" class="w-4 h-4"></i>
                       </span>
                     </span>
@@ -1544,17 +1460,17 @@ function renderStorefrontView() {
                     ${renderPromoSlices(s.promoCard2Image, s.promoCard2Title, 320, 5)}
                   </div>
                   <div class="promo-overlay-fade absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-black/15" style="transition-delay: 920ms;"></div>
-                  <span class="promo-tag-reveal absolute top-5 right-5 px-3.5 py-1.5 rounded-full bg-white/15 backdrop-blur-md text-white font-ui text-[10px] font-bold uppercase tracking-[0.12em] border border-white/20" style="transition-delay: 1020ms;">
+                  <span class="promo-tag-reveal absolute top-4 right-4 sm:top-5 sm:right-5 max-w-[calc(100%-2rem)] truncate px-3.5 py-1.5 rounded-full bg-white/15 backdrop-blur-md text-white font-ui text-[10px] font-bold uppercase tracking-[0.12em] border border-white/20" style="transition-delay: 1020ms;">
                     ${escapeHtml(s.promoCard2Tag)}
                   </span>
-                  <div class="absolute bottom-7 left-7 right-7 flex items-end justify-between gap-4">
-                    <div class="overflow-hidden max-w-[300px]">
-                      <h3 class="promo-card-title font-display text-white text-xl sm:text-2xl font-extrabold uppercase tracking-[-0.03em] leading-tight" style="transition-delay: 1100ms;">
+                  <div class="absolute bottom-5 left-5 right-5 sm:bottom-7 sm:left-7 sm:right-7 flex items-end justify-between gap-3 sm:gap-4">
+                    <div class="overflow-hidden min-w-0 max-w-[300px]">
+                      <h3 class="promo-card-title font-display text-white text-[clamp(.7rem,3.9vw,1.25rem)] sm:text-2xl font-extrabold uppercase tracking-[-0.03em] leading-tight" style="transition-delay: 1100ms;">
                         ${escapeHtml(s.promoCard2Title)}
                       </h3>
                     </div>
                     <span class="promo-arrow-reveal shrink-0" style="transition-delay: 1180ms;">
-                      <span class="w-11 h-11 rounded-full bg-white text-[#0A0A0A] flex items-center justify-center transition-transform duration-500 ease-out group-hover:translate-x-1 group-hover:-translate-y-1 group-hover:rotate-12 shadow-lg">
+                      <span class="w-9 h-9 sm:w-11 sm:h-11 rounded-full bg-white text-[#0A0A0A] flex items-center justify-center transition-transform duration-500 ease-out group-hover:translate-x-1 group-hover:-translate-y-1 group-hover:rotate-12 shadow-lg">
                         <i data-lucide="arrow-up-right" class="w-4 h-4"></i>
                       </span>
                     </span>
@@ -1587,14 +1503,14 @@ function renderStorefrontView() {
                   </div>
                   <div class="feature-card-shade absolute inset-0 bg-gradient-to-b from-black/70 via-black/15 to-black/70"></div>
 
-                  <div class="absolute top-6 inset-x-6 text-center text-white">
+                  <div class="absolute top-5 inset-x-4 sm:top-6 sm:inset-x-6 text-center text-white">
                     <div class="feature-logo-reveal flex justify-center mb-2">
                       ${renderBrandLogo(s.logoUrl, s.brandName, 'sm', false)}
                     </div>
                     <span class="feature-tag-reveal inline-block font-ui text-[10px] font-bold uppercase tracking-[0.22em] text-cyan-300 mb-1.5">
                       ${escapeHtml(s.featureBannerTag)}
                     </span>
-                    <h2 class="font-display text-xl sm:text-2xl font-extrabold uppercase tracking-[-0.03em] leading-tight">
+                    <h2 class="font-display text-[clamp(.95rem,4.8vw,1.25rem)] sm:text-2xl font-extrabold uppercase tracking-[-0.03em] leading-tight">
                       <span class="block overflow-hidden pb-0.5">
                         <span class="feature-title-line feature-title-line-1 block">${escapeHtml(s.featureBannerTitleLine1)}</span>
                       </span>
@@ -1629,7 +1545,7 @@ function renderStorefrontView() {
                   }">
                     ${escapeHtml(s.catalogSubtitle || 'NEW ARRIVAL')}
                   </span>
-                  <h2 class="font-display text-2xl sm:text-4xl font-extrabold uppercase tracking-[-0.035em] leading-[1.03] text-center ${
+                  <h2 class="font-display text-[clamp(1rem,5.6vw,1.5rem)] sm:text-4xl font-extrabold uppercase tracking-[-0.035em] leading-[1.03] text-center ${
                     isDark ? 'text-white' : 'text-[#0A0A0A]'
                   }">
                     <span class="block overflow-hidden pb-0.5">
@@ -1721,7 +1637,7 @@ function renderStorefrontView() {
                   <span class="block font-ui text-[10px] font-bold uppercase tracking-[0.16em] mb-1.5 ${
                     isDark ? 'text-cyan-400' : 'text-[#6E7378]'
                   }">LOOKBOOK / 2026</span>
-                  <h2 class="font-display text-2xl sm:text-4xl font-extrabold uppercase tracking-[-0.035em] ${
+                  <h2 class="font-display text-[clamp(1rem,5.6vw,1.5rem)] sm:text-4xl font-extrabold uppercase tracking-[-0.035em] ${
                     isDark ? 'text-white' : 'text-[#0A0A0A]'
                   }">
                     ${escapeHtml(s.lookbookSectionTitle || 'SEASONAL LOOKBOOK ARCHIVE')}
@@ -1743,7 +1659,7 @@ function renderStorefrontView() {
                       <div class="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-black/25 pointer-events-none"></div>
 
                       <div class="absolute top-4 left-4 right-4 flex items-center justify-between gap-2">
-                        <span class="lookbook-tag px-3 py-1 rounded-full bg-white/15 backdrop-blur-md text-white font-ui text-[9px] font-bold uppercase tracking-[0.14em] border border-white/20 whitespace-nowrap">
+                        <span class="lookbook-tag px-3 py-1 rounded-full bg-white/15 backdrop-blur-md text-white font-ui text-[9px] font-bold uppercase tracking-[0.14em] border border-white/20 min-w-0 truncate">
                           ${escapeHtml(card.tag || 'SEASONAL FIT')}
                         </span>
                         <span class="font-ui text-[10px] font-bold text-white/80 shrink-0">0${idx + 1}</span>
@@ -1754,13 +1670,13 @@ function renderStorefrontView() {
                           <span class="block font-ui text-[10px] uppercase tracking-[0.14em] text-cyan-300 font-semibold">
                             ${escapeHtml(card.season || '2026 COLLECTION')}
                           </span>
-                          <h3 class="font-display text-lg sm:text-xl font-extrabold uppercase tracking-[-0.02em] text-white leading-tight mt-0.5">
+                          <h3 class="font-display text-[clamp(.7rem,3.5vw,1.125rem)] sm:text-xl font-extrabold uppercase tracking-[-0.02em] text-white leading-tight mt-0.5">
                             ${escapeHtml(card.title)}
                           </h3>
                         </div>
                         ${
                           linkedProd
-                            ? `<button data-action="open-shop" data-id="${escapeHtml(linkedProd.id)}" class="lookbook-shop-btn bg-white hover:bg-zinc-100 text-[#0A0A0A] font-ui text-[10px] font-bold uppercase tracking-[0.12em] px-5 py-2.5 rounded-full shadow-lg inline-flex items-center gap-1.5 transition-all duration-300">
+                            ? `<button data-action="open-shop" data-id="${escapeHtml(linkedProd.id)}" class="lookbook-shop-btn bg-white hover:bg-zinc-100 text-[#0A0A0A] font-ui text-[9px] sm:text-[10px] font-bold uppercase tracking-[0.12em] px-3.5 sm:px-5 py-2 sm:py-2.5 rounded-full shadow-lg inline-flex items-center gap-1.5 max-w-full text-left leading-tight transition-all duration-300">
                                 SHOP THE LOOK
                                 <i data-lucide="arrow-up-right" class="w-3.5 h-3.5"></i>
                               </button>`
@@ -1794,9 +1710,9 @@ function renderStorefrontView() {
                   ${renderWhatsAppIcon('w-3.5 h-3.5')}
                   WhatsApp
                 </a>
-                <a href="${escapeHtml(tgHref)}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-[#229ED9]/15 text-[#229ED9] hover:bg-[#229ED9] hover:text-white font-ui text-[11px] font-bold transition-all">
-                  ${renderTelegramIcon('w-3.5 h-3.5')}
-                  Telegram
+                <a href="${escapeHtml(igHref)}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-[#E1306C]/15 text-[#E1306C] hover:bg-[#E1306C] hover:text-white font-ui text-[11px] font-bold transition-all">
+                  ${renderInstagramIcon('w-3.5 h-3.5')}
+                  Instagram
                 </a>
                 <a href="${escapeHtml(msgHref)}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-[#0084FF]/15 text-[#0084FF] hover:bg-[#0084FF] hover:text-white font-ui text-[11px] font-bold transition-all">
                   ${renderMessengerIcon('w-3.5 h-3.5')}
@@ -1838,10 +1754,10 @@ function renderStorefrontView() {
           </div>
 
           <div class="pt-6 flex flex-col sm:flex-row items-center justify-between gap-4">
-            <span class="font-display text-3xl sm:text-5xl font-extrabold uppercase tracking-[-0.04em]">
+            <span class="font-display text-[clamp(1.5rem,9vw,1.875rem)] sm:text-5xl font-extrabold uppercase tracking-[-0.04em] max-w-full text-center sm:text-left">
               ${escapeHtml(s.brandName)}
             </span>
-            <span class="font-ui text-[11px] font-medium tracking-wider ${isDark ? 'text-zinc-500' : 'text-[#6E7378]'}">
+            <span class="font-ui text-[11px] font-medium tracking-wider text-center sm:text-right ${isDark ? 'text-zinc-500' : 'text-[#6E7378]'}">
               ${escapeHtml(s.footerCopyright)}
             </span>
           </div>
@@ -1899,7 +1815,7 @@ function renderModals() {
 
     html += `
       <div data-action="close-bag-modal" class="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-        <div data-action="modal-card" class="rounded-[30px] max-w-md w-full overflow-hidden shadow-2xl border animate-modal-in ${
+        <div data-action="modal-card" class="rounded-[30px] max-w-md w-full max-h-[92vh] overflow-y-auto shadow-2xl border animate-modal-in ${
           isDark ? 'bg-[#121216] border-white/10 text-white' : 'bg-white border-black/5 text-[#0A0A0A]'
         }">
           <div class="px-6 py-4 border-b flex items-center justify-between ${
@@ -1941,7 +1857,7 @@ function renderModals() {
                         <div class="flex-1 min-w-0">
                           <h4 class="font-ui text-xs font-extrabold truncate">${escapeHtml(item.name)}</h4>
                           <p class="font-ui text-[11px] font-bold mt-0.5 ${isDark ? 'text-cyan-400' : 'text-[#525860]'}">
-                            BDT ${(Number(item.price || 0) * (item.qty || 1)).toFixed(2)}
+                            USD ${(Number(item.price || 0) * (item.qty || 1)).toFixed(2)}
                           </p>
                           <div class="flex items-center gap-2 mt-2">
                             <button type="button" data-action="bag-dec" data-id="${escapeHtml(item.id)}" class="w-6 h-6 rounded-lg flex items-center justify-center font-bold text-xs ${
@@ -1966,7 +1882,7 @@ function renderModals() {
                     <div class="flex items-center justify-between">
                       <span class="font-ui text-xs font-bold uppercase tracking-wider ${isDark ? 'text-zinc-400' : 'text-[#6E7378]'}">TOTAL AMOUNT</span>
                       <span class="font-display text-xl font-extrabold ${isDark ? 'text-cyan-400' : 'text-[#0A0A0A]'}">
-                        BDT ${totalMoney.toFixed(2)}
+                        USD ${totalMoney.toFixed(2)}
                       </span>
                     </div>
 
@@ -1997,10 +1913,10 @@ function renderModals() {
       const itemLines = items
         .map((it, i) => {
           const url = `${window.location.origin}${window.location.pathname}#product/${it.id}`;
-          return `${i + 1}. ${it.name} (x${it.qty || 1}) - BDT ${(Number(it.price || 0) * (it.qty || 1)).toFixed(2)} (${url})`;
+          return `${i + 1}. ${it.name} (x${it.qty || 1}) - USD ${(Number(it.price || 0) * (it.qty || 1)).toFixed(2)} (${url})`;
         })
         .join('\n');
-      inquiryMessage = `Hello ${s.brandName}! I would like to order the following items from my bag:\n${itemLines}\nTotal: BDT ${total.toFixed(2)}. Please provide more information.`;
+      inquiryMessage = `Hello ${s.brandName}! I would like to order the following items from my bag:\n${itemLines}\nTotal: USD ${total.toFixed(2)}. Please provide more information.`;
 
       selectedCardHtml = `
         <div class="p-3.5 rounded-2xl space-y-2 ${isDark ? 'bg-[#1B1B21]' : 'bg-[#F5F7F8]'}">
@@ -2009,7 +1925,7 @@ function renderModals() {
               SELECTED BAG ITEMS (${items.reduce((sum, it) => sum + (it.qty || 1), 0)})
             </span>
             <span class="font-ui text-xs font-extrabold ${isDark ? 'text-cyan-400' : 'text-[#0A0A0A]'}">
-              Total: BDT ${total.toFixed(2)}
+              Total: USD ${total.toFixed(2)}
             </span>
           </div>
           <div class="max-h-24 overflow-y-auto space-y-1.5 pr-1">
@@ -2018,7 +1934,7 @@ function renderModals() {
                 (it) => `
               <div class="flex items-center justify-between text-xs">
                 <span class="font-ui font-bold truncate pr-2">${escapeHtml(it.name)} ×${it.qty || 1}</span>
-                <span class="font-ui font-semibold shrink-0 opacity-80">BDT ${(Number(it.price || 0) * (it.qty || 1)).toFixed(2)}</span>
+                <span class="font-ui font-semibold shrink-0 opacity-80">USD ${(Number(it.price || 0) * (it.qty || 1)).toFixed(2)}</span>
               </div>
             `
               )
@@ -2037,7 +1953,7 @@ function renderModals() {
             <span class="font-ui text-[10px] font-bold uppercase tracking-wider ${isDark ? 'text-zinc-400' : 'text-[#6E7378]'}">SELECTED ITEM</span>
             <h3 class="font-ui text-sm font-extrabold truncate">${escapeHtml(product.name)}</h3>
             <p class="font-ui text-xs font-bold mt-0.5 ${isDark ? 'text-cyan-400' : 'text-[#0A0A0A]'}">
-              BDT ${Number(product.price || 0).toFixed(2)}
+              USD ${Number(product.price || 0).toFixed(2)}
             </p>
           </div>
         </div>
@@ -2046,8 +1962,8 @@ function renderModals() {
 
     const cleanPhone = (s.whatsappNumber || '').replace(/[^0-9]/g, '');
     const whatsappHref = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(inquiryMessage)}`;
-    const rawTg = (s.telegramUsername || '').trim();
-    const telegramHref = rawTg.startsWith('http') ? rawTg : `https://t.me/${rawTg.replace(/^@/, '')}`;
+    const rawIg = (s.instagramUsername || '').trim();
+    const instagramHref = rawIg.startsWith('http') ? rawIg : `https://ig.me/m/${rawIg.replace(/^@/, '')}`;
     const rawMsg = (s.messengerUsername || '').trim();
     const messengerHref = rawMsg.startsWith('http') ? rawMsg : `https://m.me/${rawMsg.replace(/^@/, '')}`;
 
@@ -2067,7 +1983,7 @@ function renderModals() {
             </button>
           </div>
 
-          <div class="p-6 space-y-4">
+          <div class="p-4 sm:p-6 space-y-4">
             ${selectedCardHtml}
 
             <p class="text-xs leading-relaxed ${isDark ? 'text-zinc-400' : 'text-[#5C636A]'}">
@@ -2075,26 +1991,26 @@ function renderModals() {
             </p>
 
             <div class="space-y-2.5">
-              <a href="${escapeHtml(whatsappHref)}" target="_blank" rel="noopener noreferrer" class="w-full flex items-center justify-between px-5 py-3.5 rounded-2xl bg-[#25D366] hover:bg-[#20BD5A] text-white font-ui font-bold text-xs uppercase tracking-wider shadow-md hover:shadow-lg transition-all">
-                <span class="flex items-center gap-3">
+              <a href="${escapeHtml(whatsappHref)}" target="_blank" rel="noopener noreferrer" class="w-full flex items-center justify-between gap-2 px-4 sm:px-5 py-3.5 rounded-2xl bg-[#25D366] hover:bg-[#20BD5A] text-white font-ui font-bold text-xs uppercase tracking-wider shadow-md hover:shadow-lg transition-all">
+                <span class="flex items-center gap-2.5 sm:gap-3 min-w-0">
                   ${renderWhatsAppIcon('w-5 h-5')}
-                  <span>Order via WhatsApp</span>
+                  <span class="leading-tight">Order via WhatsApp</span>
                 </span>
-                <span class="text-[10px] bg-black/15 px-2.5 py-1 rounded-full">Auto-Filled</span>
+                <span class="shrink-0 whitespace-nowrap text-[9px] sm:text-[10px] bg-black/15 px-2 sm:px-2.5 py-1 rounded-full">Auto-Filled</span>
               </a>
 
-              <a href="${escapeHtml(telegramHref)}" target="_blank" rel="noopener noreferrer" data-action="copy-inquiry-silent" data-msg="${escapeHtml(inquiryMessage)}" class="w-full flex items-center justify-between px-5 py-3.5 rounded-2xl bg-[#229ED9] hover:bg-[#1E8EC4] text-white font-ui font-bold text-xs uppercase tracking-wider shadow-md hover:shadow-lg transition-all">
-                <span class="flex items-center gap-3">
-                  ${renderTelegramIcon('w-5 h-5')}
-                  <span>Order via Telegram</span>
+              <a href="${escapeHtml(instagramHref)}" target="_blank" rel="noopener noreferrer" data-action="copy-inquiry-silent" data-msg="${escapeHtml(inquiryMessage)}" class="w-full flex items-center justify-between gap-2 px-4 sm:px-5 py-3.5 rounded-2xl bg-gradient-to-tr from-[#F58529] via-[#DD2A7B] to-[#8134AF] hover:opacity-95 text-white font-ui font-bold text-xs uppercase tracking-wider shadow-md hover:shadow-lg transition-all">
+                <span class="flex items-center gap-2.5 sm:gap-3 min-w-0">
+                  ${renderInstagramIcon('w-5 h-5')}
+                  <span class="leading-tight">Order via Instagram</span>
                 </span>
                 <i data-lucide="external-link" class="w-4 h-4 opacity-85"></i>
               </a>
 
-              <a href="${escapeHtml(messengerHref)}" target="_blank" rel="noopener noreferrer" data-action="copy-inquiry-silent" data-msg="${escapeHtml(inquiryMessage)}" class="w-full flex items-center justify-between px-5 py-3.5 rounded-2xl bg-gradient-to-r from-[#0084FF] to-[#0066CC] hover:opacity-95 text-white font-ui font-bold text-xs uppercase tracking-wider shadow-md hover:shadow-lg transition-all">
-                <span class="flex items-center gap-3">
+              <a href="${escapeHtml(messengerHref)}" target="_blank" rel="noopener noreferrer" data-action="copy-inquiry-silent" data-msg="${escapeHtml(inquiryMessage)}" class="w-full flex items-center justify-between gap-2 px-4 sm:px-5 py-3.5 rounded-2xl bg-gradient-to-r from-[#0084FF] to-[#0066CC] hover:opacity-95 text-white font-ui font-bold text-xs uppercase tracking-wider shadow-md hover:shadow-lg transition-all">
+                <span class="flex items-center gap-2.5 sm:gap-3 min-w-0">
                   ${renderMessengerIcon('w-5 h-5')}
-                  <span>Order via Messenger</span>
+                  <span class="leading-tight">Order via Messenger</span>
                 </span>
                 <i data-lucide="external-link" class="w-4 h-4 opacity-85"></i>
               </a>
@@ -2109,12 +2025,12 @@ function renderModals() {
                       <div class="h-px flex-1 ${isDark ? 'bg-white/10' : 'bg-black/10'}"></div>
                     </div>
 
-                    <button type="button" data-action="add-to-bag" data-id="${escapeHtml(product.id)}" class="w-full flex items-center justify-between px-5 py-3.5 rounded-2xl font-ui font-bold text-xs uppercase tracking-wider shadow-md hover:shadow-lg transition-all active:scale-[0.99] ${
+                    <button type="button" data-action="add-to-bag" data-id="${escapeHtml(product.id)}" class="w-full flex items-center justify-between gap-2 px-4 sm:px-5 py-3.5 rounded-2xl font-ui font-bold text-xs uppercase tracking-wider shadow-md hover:shadow-lg transition-all active:scale-[0.99] ${
                       isDark ? 'bg-white text-[#09090B] hover:bg-zinc-200' : 'bg-[#0A0A0A] text-white hover:bg-[#272A2E]'
                     }">
-                      <span class="flex items-center gap-3">
+                      <span class="flex items-center gap-2.5 sm:gap-3 min-w-0">
                         <i data-lucide="shopping-bag" class="w-5 h-5 pointer-events-none"></i>
-                        <span>Add to Your Bag</span>
+                        <span class="leading-tight">Add to Your Bag</span>
                       </span>
                       <i data-lucide="plus" class="w-4 h-4 opacity-85 pointer-events-none"></i>
                     </button>
@@ -2141,24 +2057,24 @@ function renderModals() {
   if (state.heroVideoOpen) {
     html += `
       <div data-action="close-hero-video" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
-        <div data-action="modal-card" class="bg-[#121216] rounded-3xl max-w-2xl w-full overflow-hidden border border-white/15 shadow-2xl animate-modal-in">
-          <div class="flex items-center justify-between px-6 py-4 border-b border-white/10">
+        <div data-action="modal-card" class="bg-[#121216] rounded-3xl max-w-2xl w-full max-h-[92vh] overflow-y-auto border border-white/15 shadow-2xl animate-modal-in">
+          <div class="flex items-center justify-between gap-3 px-4 sm:px-6 py-3 sm:py-4 border-b border-white/10">
             ${renderBrandLogo(s.logoUrl, s.brandName, 'sm', false)}
             <button data-action="close-hero-video" class="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center">
               <i data-lucide="x" class="w-4 h-4 pointer-events-none"></i>
             </button>
           </div>
-          <div class="p-6 text-center space-y-5">
-            <div class="relative rounded-2xl overflow-hidden aspect-video bg-black">
+          <div class="p-4 sm:p-6 text-center space-y-5">
+            <div class="relative rounded-2xl overflow-hidden aspect-[4/3] sm:aspect-video bg-black">
               <img src="${escapeHtml(s.heroVideoPreviewImg || s.heroImage)}" alt="Campaign" class="w-full h-full object-cover opacity-80" />
-              <div class="absolute inset-0 bg-gradient-to-t from-black/85 via-black/25 to-transparent flex flex-col items-center justify-center p-6">
+              <div class="absolute inset-0 bg-gradient-to-t from-black/85 via-black/25 to-transparent flex flex-col items-center justify-center p-4 sm:p-6">
                 <span class="px-3 py-1 rounded-full bg-cyan-400/20 text-cyan-300 font-ui text-[10px] font-bold uppercase tracking-widest mb-2">
                   2026 ATHLETIC CAMPAIGN
                 </span>
-                <h3 class="font-display text-white text-2xl sm:text-3xl font-extrabold uppercase tracking-tight">
+                <h3 class="font-display text-white text-[clamp(1rem,5.2vw,1.5rem)] sm:text-3xl leading-tight font-extrabold uppercase tracking-tight">
                   ${escapeHtml(s.heroTitleLine1)} ${escapeHtml(s.heroTitleLine2)}
                 </h3>
-                <p class="text-white/75 text-xs max-w-md mt-2">${escapeHtml(s.heroDescription)}</p>
+                <p class="text-white/75 text-xs max-w-md mt-2 line-clamp-2 sm:line-clamp-none">${escapeHtml(s.heroDescription)}</p>
               </div>
             </div>
             <button data-action="hero-video-shop" class="bg-white text-[#0A0A0A] font-ui text-xs font-bold uppercase tracking-wider px-7 py-3 rounded-full hover:bg-white/90 transition-all">
@@ -2247,7 +2163,7 @@ function renderOwnerLoginView() {
       <div class="w-full max-w-md rounded-[32px] p-7 sm:p-10 shadow-2xl border space-y-6 animate-modal-in ${
         isDark ? 'bg-[#121216] border-white/10' : 'bg-white border-white'
       }">
-        <div class="flex items-center justify-between">
+        <div class="flex flex-wrap items-center justify-between gap-2">
           <button data-action="nav-home" class="inline-flex items-center gap-1.5 font-ui text-xs font-bold uppercase tracking-wider transition-colors ${
             isDark ? 'text-zinc-400 hover:text-white' : 'text-[#5C636A] hover:text-[#0A0A0A]'
           }">
@@ -2436,7 +2352,7 @@ function renderDashboardView() {
       <div class="space-y-8">
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <h1 class="font-display text-2xl sm:text-3xl font-extrabold uppercase tracking-[-0.02em]">DASHBOARD OVERVIEW</h1>
+            <h1 class="font-display text-[clamp(1.1rem,5.6vw,1.5rem)] sm:text-3xl font-extrabold uppercase tracking-[-0.02em]">DASHBOARD OVERVIEW</h1>
             <p class="text-xs mt-1 ${isDark ? 'text-zinc-400' : 'text-[#6E7378]'}">Real-time overview of your storefront catalog, categories, and GitHub media inventory.</p>
           </div>
           <button data-action="dash-new-product" class="inline-flex items-center gap-2 font-ui text-xs font-bold uppercase tracking-wider px-5 py-3 rounded-full shadow-sm ${
@@ -2476,7 +2392,7 @@ function renderDashboardView() {
                   <div class="min-w-0">
                     <h3 class="font-ui text-xs font-bold truncate">${escapeHtml(prod.name)}</h3>
                     <p class="text-[11px] ${isDark ? 'text-zinc-400' : 'text-[#6E7378]'}">
-                      ${escapeHtml(getCategoryName(prod.categoryId))} • BDT ${Number(prod.price || 0).toFixed(2)}
+                      ${escapeHtml(getCategoryName(prod.categoryId))} • USD ${Number(prod.price || 0).toFixed(2)}
                     </p>
                   </div>
                 </div>
@@ -2511,7 +2427,7 @@ function renderDashboardView() {
       <div class="space-y-6">
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <h1 class="font-display text-2xl sm:text-3xl font-extrabold uppercase tracking-[-0.02em]">MANAGE PRODUCTS (${state.products.length})</h1>
+            <h1 class="font-display text-[clamp(1.1rem,5.6vw,1.5rem)] sm:text-3xl font-extrabold uppercase tracking-[-0.02em]">MANAGE PRODUCTS (${state.products.length})</h1>
             <p class="text-xs mt-1 ${isDark ? 'text-zinc-400' : 'text-[#6E7378]'}">Edit details, toggle Published/Draft status, or remove items from your storefront.</p>
           </div>
           <button data-action="dash-new-product" class="inline-flex items-center gap-2 font-ui text-xs font-bold uppercase tracking-wider px-5 py-3 rounded-full ${
@@ -2568,7 +2484,7 @@ function renderDashboardView() {
                       </div>
                     </td>
                     <td class="py-3.5 px-4 opacity-75">${escapeHtml(getCategoryName(prod.categoryId))}</td>
-                    <td class="py-3.5 px-4 font-ui font-bold">BDT ${Number(prod.price || 0).toFixed(2)}</td>
+                    <td class="py-3.5 px-4 font-ui font-bold">USD ${Number(prod.price || 0).toFixed(2)}</td>
                     <td class="py-3.5 px-4 text-[11px] opacity-65">${(prod.images || []).length} img • ${(prod.videos || []).length} vid</td>
                     <td class="py-3.5 px-4">
                       <button data-action="toggle-prod-visibility" data-id="${escapeHtml(prod.id)}" class="px-3 py-1 rounded-full font-ui text-[10px] font-bold uppercase transition-colors ${
@@ -2610,7 +2526,7 @@ function renderDashboardView() {
       <form id="product-save-form" class="space-y-6">
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <h1 class="font-display text-2xl sm:text-3xl font-extrabold uppercase tracking-[-0.02em]">
+            <h1 class="font-display text-[clamp(1.1rem,5.6vw,1.5rem)] sm:text-3xl font-extrabold uppercase tracking-[-0.02em]">
               ${state.editingProductId ? 'EDIT PRODUCT' : 'ADD NEW PRODUCT'}
             </h1>
             <p class="text-xs mt-1 ${isDark ? 'text-zinc-400' : 'text-[#6E7378]'}">Upload photos &amp; videos directly to your GitHub repo's /uploads/ folder and save permanently.</p>
@@ -2634,7 +2550,7 @@ function renderDashboardView() {
           </div>
           <div class="grid grid-cols-2 gap-3">
             <div>
-              <label class="block font-ui text-[11px] font-bold uppercase tracking-wider mb-1.5">Price (BDT) *</label>
+              <label class="block font-ui text-[11px] font-bold uppercase tracking-wider mb-1.5">Price (USD) *</label>
               <input id="pf-price" type="number" step="0.01" min="0" required value="${escapeHtml(pf.price)}" placeholder="120.00" class="${inputClass}" />
             </div>
             <div>
@@ -2817,7 +2733,7 @@ function renderDashboardView() {
     mainContent = `
       <div class="space-y-6">
         <div>
-          <h1 class="font-display text-2xl sm:text-3xl font-extrabold uppercase tracking-[-0.02em]">MANAGE CATEGORIES (${state.categories.length})</h1>
+          <h1 class="font-display text-[clamp(1.1rem,5.6vw,1.5rem)] sm:text-3xl font-extrabold uppercase tracking-[-0.02em]">MANAGE CATEGORIES (${state.categories.length})</h1>
           <p class="text-xs mt-1 ${isDark ? 'text-zinc-400' : 'text-[#6E7378]'}">Organize collections displayed in your navigation bar and catalog filters.</p>
         </div>
 
@@ -3146,7 +3062,7 @@ function renderDashboardView() {
       <form id="customization-save-form" class="space-y-6">
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <h1 class="font-display text-2xl sm:text-3xl font-extrabold uppercase tracking-[-0.02em]">WEBSITE CUSTOMIZATION STUDIO</h1>
+            <h1 class="font-display text-[clamp(1.1rem,5.6vw,1.5rem)] sm:text-3xl font-extrabold uppercase tracking-[-0.02em]">WEBSITE CUSTOMIZATION STUDIO</h1>
             <p class="text-xs mt-1 ${isDark ? 'text-zinc-400' : 'text-[#6E7378]'}">Edit every non-product image, banner, lookbook card, logo, and title across your live storefront.</p>
           </div>
           <button type="submit" class="px-6 py-3 rounded-full font-ui text-xs font-bold uppercase tracking-wider shadow-md shrink-0 ${
@@ -3185,7 +3101,7 @@ function renderDashboardView() {
     mainContent = `
       <div class="space-y-6">
         <div>
-          <h1 class="font-display text-2xl sm:text-3xl font-extrabold uppercase tracking-[-0.02em]">CONTACT, SOCIAL &amp; GITHUB REPO SYNC</h1>
+          <h1 class="font-display text-[clamp(1.1rem,5.6vw,1.5rem)] sm:text-3xl font-extrabold uppercase tracking-[-0.02em]">CONTACT, SOCIAL &amp; GITHUB REPO SYNC</h1>
           <p class="text-xs mt-1 ${isDark ? 'text-zinc-400' : 'text-[#6E7378]'}">Connect your GitHub repository for permanent storage and configure your social media ordering links.</p>
         </div>
 
@@ -3231,15 +3147,15 @@ function renderDashboardView() {
               <p class="text-[11px] opacity-70">Country code without + or spaces (e.g., 8801712345678).</p>
             </div>
 
-            <div class="p-4 rounded-2xl bg-[#229ED9]/10 border border-[#229ED9]/25 space-y-2">
-              <div class="flex items-center gap-2 text-[#229ED9] font-ui font-bold text-xs uppercase">
-                ${renderTelegramIcon('w-4 h-4')}
-                Telegram Username / Link
+            <div class="p-4 rounded-2xl bg-[#E1306C]/10 border border-[#E1306C]/25 space-y-2">
+              <div class="flex items-center gap-2 text-[#E1306C] font-ui font-bold text-xs uppercase">
+                ${renderInstagramIcon('w-4 h-4')}
+                Instagram Username / Link
               </div>
-              <input id="social-telegram" type="text" value="${escapeHtml(s.telegramUsername || '')}" placeholder="rrwear_official" class="w-full rounded-xl border px-3.5 py-2.5 text-sm ${
+              <input id="social-instagram" type="text" value="${escapeHtml(s.instagramUsername || '')}" placeholder="rrwear_official" class="w-full rounded-xl border px-3.5 py-2.5 text-sm ${
                 isDark ? 'bg-[#121216] border-white/15 text-white' : 'bg-white border-black/15'
               }" />
-              <p class="text-[11px] opacity-70">Enter Telegram username (without @) or full t.me link.</p>
+              <p class="text-[11px] opacity-70">Enter Instagram username (without @) or full instagram.com / ig.me link.</p>
             </div>
 
             <div class="p-4 rounded-2xl bg-[#0084FF]/10 border border-[#0084FF]/25 space-y-2">
@@ -3275,7 +3191,7 @@ function renderDashboardView() {
             </div>
             <div>
               <label class="block font-ui text-[11px] font-bold uppercase mb-1">New Password (leave blank to keep current)</label>
-              <input id="sec-new-pass" type="password" autocomplete="new-password" placeholder="Enter new password..." class="w-full rounded-2xl border px-4 py-2.5 text-sm ${
+              <input id="sec-new-pass" type="password" placeholder="Enter new password..." class="w-full rounded-2xl border px-4 py-2.5 text-sm ${
                 isDark ? 'bg-[#1B1B21] border-white/15 text-white' : 'bg-white border-black/15'
               }" />
             </div>
@@ -3293,7 +3209,7 @@ function renderDashboardView() {
       isDark ? 'bg-[#09090B] text-[#F8FAFC]' : 'bg-[#F2F4F7] text-[#0A0A0A]'
     }">
       <!-- Mobile Top Bar -->
-      <div class="lg:hidden border-b px-4 py-3 flex items-center justify-between sticky top-0 z-30 ${
+      <div class="rr-dash-topbar lg:hidden border-b px-4 py-3 gap-2 flex items-center justify-between sticky top-0 z-30 ${
         isDark ? 'bg-[#121216] border-white/10' : 'bg-white border-black/5'
       }">
         ${renderBrandLogo(s.logoUrl, s.brandName, 'sm', !isDark)}
@@ -3313,7 +3229,7 @@ function renderDashboardView() {
       </div>
 
       <!-- Left Dashboard Sidebar -->
-      <aside class="${state.dashboardSidebarOpen ? 'fixed inset-0 z-40 block' : 'hidden'} lg:block lg:w-72 bg-[#111315] text-white p-6 flex flex-col justify-between shrink-0 lg:min-h-screen border-r border-white/10">
+      <aside class="${state.dashboardSidebarOpen ? 'fixed inset-0 z-40 block overflow-y-auto' : 'hidden'} lg:block lg:w-72 bg-[#111315] text-white p-6 flex flex-col justify-between shrink-0 lg:min-h-screen border-r border-white/10">
         <div class="space-y-8">
           <div class="flex items-center justify-between">
             ${renderBrandLogo(s.logoUrl, s.brandName, 'md', false)}
@@ -3884,7 +3800,6 @@ document.addEventListener('click', async (e) => {
     document.getElementById('toast-root').innerHTML = '';
   } else if (action === 'toggle-theme') {
     state.theme = state.theme === 'light' ? 'dark' : 'light';
-    saveTheme(state.theme);
     render();
   } else if (action === 'toggle-mobile-menu') {
     state.mobileMenuOpen = !state.mobileMenuOpen;
@@ -4353,7 +4268,6 @@ document.addEventListener('submit', async (e) => {
 
   if (formId === 'owner-login-form') {
     state.loginError = '';
-    await storeLoadPromise; // make sure the latest saved owner email/password has loaded
     const normalizedEmail = state.loginEmail.trim().toLowerCase();
     const inputHash = await hashSecret(state.loginPassword);
     const storedEmail = (state.ownerAuthRecord?.email || 'owner@rrwear.com').toLowerCase();
@@ -4480,13 +4394,13 @@ document.addEventListener('submit', async (e) => {
     render();
   } else if (formId === 'social-links-form') {
     const wa = document.getElementById('social-whatsapp')?.value.trim() || '';
-    const tg = document.getElementById('social-telegram')?.value.trim() || '';
+    const ig = document.getElementById('social-instagram')?.value.trim() || '';
     const msg = document.getElementById('social-messenger')?.value.trim() || '';
     state.siteSettings.whatsappNumber = wa;
-    state.siteSettings.telegramUsername = tg;
+    state.siteSettings.instagramUsername = ig;
     state.siteSettings.messengerUsername = msg;
     state.customForm.whatsappNumber = wa;
-    state.customForm.telegramUsername = tg;
+    state.customForm.instagramUsername = ig;
     state.customForm.messengerUsername = msg;
     try {
       await persistStoreToGithub('Update social media contact links');
@@ -4522,4 +4436,4 @@ document.addEventListener('submit', async (e) => {
 // ============================================================================
 window.addEventListener('hashchange', handleHashChange);
 handleHashChange();
-storeLoadPromise = initStoreFromGithub();
+initStoreFromGithub();
