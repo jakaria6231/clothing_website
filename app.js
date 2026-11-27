@@ -1628,8 +1628,8 @@ function renderStorefrontView() {
               </div>
             </section>
 
-            <!-- SECTION 6: VERTICAL EDITORIAL LOOKBOOK STRIP -->
-            <section class="relative rounded-[28px] sm:rounded-[36px] border p-6 sm:p-12 overflow-hidden transition-colors duration-300 ${
+           <!-- SECTION 6: VERTICAL EDITORIAL LOOKBOOK STRIP -->
+            <section id="lookbook-section" class="relative rounded-[28px] sm:rounded-[36px] border p-6 sm:p-12 overflow-hidden transition-colors duration-300 ${
               isDark ? 'bg-[#121216] border-white/10' : 'bg-[#F4F5F7] border-white'
             }">
               <div class="scroll-reveal reveal-rise flex flex-col sm:flex-row sm:items-end justify-between gap-3 mb-7">
@@ -1644,28 +1644,28 @@ function renderStorefrontView() {
                   </h2>
                 </div>
                 <span class="font-ui text-[11px] font-medium ${isDark ? 'text-zinc-400' : 'text-[#6E7378]'}">
-                  Hover any fit to expand &amp; shop the look
+                  Hover or tap any fit to expand &amp; shop the look
                 </span>
               </div>
 
-              <div class="lookbook-strip flex flex-col lg:flex-row gap-4 lg:h-[520px]">
+              <div id="lookbook-strip" class="lookbook-strip gap-2 sm:gap-4 h-[340px] sm:h-[460px] lg:h-[520px]">
                 ${lookbookCards
                   .map((card, idx) => {
                     const linkedProd =
                       publishedProducts.find((p) => p.id === card.linkedProductId) || publishedProducts[0];
                     return `
-                    <div class="lookbook-card relative rounded-[26px] overflow-hidden bg-[#1B1B21] h-[380px] lg:h-full lg:flex-1 cursor-pointer group shadow-md">
-                      <img src="${escapeHtml(card.image)}" alt="${escapeHtml(card.title)}" class="w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-105" />
-                      <div class="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-black/25"></div>
+                    <div data-lookbook-index="${idx}" class="lookbook-card ${idx === 0 ? 'is-active' : ''} relative rounded-[22px] sm:rounded-[26px] overflow-hidden bg-[#1B1B21] h-full cursor-pointer shadow-md">
+                      <img src="${escapeHtml(card.image)}" alt="${escapeHtml(card.title)}" class="lookbook-img w-full h-full object-cover object-center" />
+                      <div class="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-black/25 pointer-events-none"></div>
 
-                      <div class="absolute top-4 left-4 right-4 flex items-center justify-between">
-                        <span class="px-3 py-1 rounded-full bg-white/15 backdrop-blur-md text-white font-ui text-[9px] font-bold uppercase tracking-[0.14em] border border-white/20">
+                      <div class="absolute top-4 left-4 right-4 flex items-center justify-between gap-2">
+                        <span class="lookbook-tag px-3 py-1 rounded-full bg-white/15 backdrop-blur-md text-white font-ui text-[9px] font-bold uppercase tracking-[0.14em] border border-white/20 whitespace-nowrap">
                           ${escapeHtml(card.tag || 'SEASONAL FIT')}
                         </span>
-                        <span class="font-ui text-[10px] font-bold text-white/80">0${idx + 1}</span>
+                        <span class="font-ui text-[10px] font-bold text-white/80 shrink-0">0${idx + 1}</span>
                       </div>
 
-                      <div class="absolute inset-x-5 bottom-5 flex flex-col items-start gap-3">
+                      <div class="lookbook-details absolute inset-x-5 bottom-5 flex flex-col items-start gap-3 min-w-[210px]">
                         <div>
                           <span class="block font-ui text-[10px] uppercase tracking-[0.14em] text-cyan-300 font-semibold">
                             ${escapeHtml(card.season || '2026 COLLECTION')}
@@ -1676,7 +1676,7 @@ function renderStorefrontView() {
                         </div>
                         ${
                           linkedProd
-                            ? `<button data-action="open-shop" data-id="${escapeHtml(linkedProd.id)}" class="lookbook-shop-btn bg-white hover:bg-zinc-100 text-[#0A0A0A] font-ui text-[10px] font-bold uppercase tracking-[0.12em] px-5 py-2.5 rounded-full shadow-lg inline-flex items-center gap-1.5 transition-all duration-500 lg:translate-y-3 lg:opacity-85">
+                            ? `<button data-action="open-shop" data-id="${escapeHtml(linkedProd.id)}" class="lookbook-shop-btn bg-white hover:bg-zinc-100 text-[#0A0A0A] font-ui text-[10px] font-bold uppercase tracking-[0.12em] px-5 py-2.5 rounded-full shadow-lg inline-flex items-center gap-1.5 transition-all duration-300">
                                 SHOP THE LOOK
                                 <i data-lucide="arrow-up-right" class="w-3.5 h-3.5"></i>
                               </button>`
@@ -3631,6 +3631,7 @@ function render() {
   initPromoMotion();
   initFeatureBannerMotion();
   initCatalogWaveReveal();
+  initLookbookAccordion();
 }
 
 // ============================================================================
@@ -3696,6 +3697,95 @@ function initFeatureBannerMotion() {
     );
   }
   updateFeatureBannerWatermarkParallax();
+}
+
+// ============================================================================
+// SECTION 6: AUTO-CYCLING EXPANDING LOOKBOOK ACCORDION
+// ============================================================================
+let lookbookTimer = null;
+let lookbookObserver = null;
+let lookbookActiveIndex = 0;
+
+function initLookbookAccordion() {
+  if (lookbookTimer) {
+    clearInterval(lookbookTimer);
+    lookbookTimer = null;
+  }
+  if (lookbookObserver) {
+    lookbookObserver.disconnect();
+    lookbookObserver = null;
+  }
+
+  const sectionEl = document.getElementById('lookbook-section');
+  const stripEl = document.getElementById('lookbook-strip');
+  if (!sectionEl || !stripEl || state.activeView !== 'home') return;
+
+  const cards = Array.from(stripEl.querySelectorAll('.lookbook-card'));
+  if (cards.length <= 1) return;
+
+  if (lookbookActiveIndex >= cards.length) lookbookActiveIndex = 0;
+
+  let isPaused = false;
+  let isInView = false;
+
+  const setActiveCard = (index) => {
+    lookbookActiveIndex = index;
+    cards.forEach((card, idx) => {
+      card.classList.toggle('is-active', idx === index);
+    });
+  };
+
+  const stopCycle = () => {
+    if (lookbookTimer) {
+      clearInterval(lookbookTimer);
+      lookbookTimer = null;
+    }
+  };
+
+  const startCycle = () => {
+    stopCycle();
+    if (!isInView || isPaused) return;
+    lookbookTimer = setInterval(() => {
+      const nextIdx = (lookbookActiveIndex + 1) % cards.length;
+      setActiveCard(nextIdx);
+    }, 3200);
+  };
+
+  setActiveCard(lookbookActiveIndex);
+
+  cards.forEach((card, idx) => {
+    card.addEventListener('mouseenter', () => {
+      isPaused = true;
+      stopCycle();
+      setActiveCard(idx);
+    });
+    card.addEventListener('click', (e) => {
+      if (e.target.closest('[data-action="open-shop"]')) return;
+      setActiveCard(idx);
+      if (!isPaused) startCycle();
+    });
+  });
+
+  stripEl.addEventListener('mouseleave', () => {
+    isPaused = false;
+    startCycle();
+  });
+
+  lookbookObserver = new IntersectionObserver(
+    (entries) => {
+      entries.forEach((entry) => {
+        isInView = entry.isIntersecting;
+        if (isInView) {
+          startCycle();
+        } else {
+          stopCycle();
+        }
+      });
+    },
+    { threshold: 0.25 }
+  );
+
+  lookbookObserver.observe(sectionEl);
 }
 
 // ============================================================================
