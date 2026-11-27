@@ -57,35 +57,42 @@ async function githubPutFile(path, base64Content, message) {
     throw new Error('GitHub Token not configured! Go to Owner Dashboard → Contact & Social Links to connect your GitHub Token.');
   }
 
-  let sha = undefined;
-  try {
-    const existing = await githubGetFile(path);
-    if (existing && existing.sha) sha = existing.sha;
-  } catch (e) {}
-
   const url = `https://api.github.com/repos/${GITHUB_CONFIG.owner}/${GITHUB_CONFIG.repo}/contents/${path}`;
-  const body = {
-    message,
-    content: base64Content,
-    branch: GITHUB_CONFIG.branch
-  };
-  if (sha) body.sha = sha;
+  let lastError = null;
 
-  const res = await fetch(url, {
-    method: 'PUT',
-    headers: {
-      Authorization: `Bearer ${token}`,
-      Accept: 'application/vnd.github+json',
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify(body)
-  });
+  // Retry a few times: if GitHub reports a sha conflict (409/422) we fetch a fresh sha and try again.
+  for (let attempt = 0; attempt < 3; attempt++) {
+    let sha = undefined;
+    try {
+      const existing = await githubGetFile(path);
+      if (existing && existing.sha) sha = existing.sha;
+    } catch (e) {}
 
-  if (!res.ok) {
+    const body = {
+      message,
+      content: base64Content,
+      branch: GITHUB_CONFIG.branch
+    };
+    if (sha) body.sha = sha;
+
+    const res = await fetch(url, {
+      method: 'PUT',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: 'application/vnd.github+json',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(body)
+    });
+
+    if (res.ok) return await res.json();
+
     const errData = await res.json().catch(() => ({}));
-    throw new Error(errData.message || `Failed to save ${path} to GitHub (${res.status})`);
+    lastError = new Error(errData.message || `Failed to save ${path} to GitHub (${res.status})`);
+    if (res.status !== 409 && res.status !== 422) break;
+    await new Promise((resolve) => setTimeout(resolve, 500 * (attempt + 1)));
   }
-  return await res.json();
+  throw lastError;
 }
 
 async function uploadMediaToGithub(base64DataUrl, originalFileName = 'media.jpg') {
@@ -103,6 +110,14 @@ async function uploadMediaToGithub(base64DataUrl, originalFileName = 'media.jpg'
 }
 
 async function persistStoreToGithub(commitMsg = 'Update store data from Owner Dashboard') {
+  // Safety: never write until we know what is really stored on GitHub, otherwise
+  // stale/default data could overwrite changes the owner already saved earlier.
+  if (!state.remoteStoreReady) {
+    throw new Error(
+      'Your saved store data has not loaded from GitHub yet, so saving was paused to protect it. Please refresh the page, wait a moment, and try again.'
+    );
+  }
+
   const storePayload = {
     siteSettings: state.siteSettings,
     categories: state.categories,
@@ -121,6 +136,61 @@ async function persistStoreToGithub(commitMsg = 'Update store data from Owner Da
 
   const encoded = utf8ToBase64(JSON.stringify(storePayload, null, 2));
   await githubPutFile(GITHUB_CONFIG.dataPath, encoded, commitMsg);
+
+  // Only after GitHub confirmed the save: remember exactly what was synced in this browser.
+  try {
+    localStorage.setItem('rr_wear_store_synced', JSON.stringify(storePayload));
+  } catch (e) {}
+}
+
+// Read the last copy this browser successfully synced to GitHub (null if none).
+function readLocalSyncedCopy() {
+  try {
+    const raw = localStorage.getItem('rr_wear_store_synced');
+    return raw ? JSON.parse(raw) : null;
+  } catch (e) {
+    return null;
+  }
+}
+
+// Fresh read of store.json straight from the GitHub API (not CDN-cached).
+async function readStoreViaApi() {
+  const token = getGithubToken();
+  const headers = { Accept: 'application/vnd.github.raw+json' };
+  if (token) headers.Authorization = `Bearer ${token}`;
+  const url = `https://api.github.com/repos/${GITHUB_CONFIG.owner}/${GITHUB_CONFIG.repo}/contents/${GITHUB_CONFIG.dataPath}?ref=${GITHUB_CONFIG.branch}&_t=${Date.now()}`;
+  const res = await fetch(url, { headers, cache: 'no-store' });
+  if (res.status === 404) return { status: 'missing' };
+  if (!res.ok) throw new Error(`GitHub API error (${res.status})`);
+  return { status: 'ok', data: await res.json() };
+}
+
+// Read of store.json from raw.githubusercontent.com (fast, no rate limit, but GitHub caches it for a few minutes).
+async function readStoreViaRaw() {
+  const url = `https://raw.githubusercontent.com/${GITHUB_CONFIG.owner}/${GITHUB_CONFIG.repo}/${GITHUB_CONFIG.branch}/${GITHUB_CONFIG.dataPath}?_t=${Date.now()}`;
+  const res = await fetch(url, { cache: 'no-store' });
+  if (res.status === 404) return { status: 'missing' };
+  if (!res.ok) throw new Error(`GitHub raw error (${res.status})`);
+  return { status: 'ok', data: await res.json() };
+}
+
+// Owner (token present) -> API first so the newest commit is always seen.
+// Visitors -> raw first (no API rate limit), API as fallback.
+async function fetchLatestStoreData() {
+  const readers = getGithubToken() ? [readStoreViaApi, readStoreViaRaw] : [readStoreViaRaw, readStoreViaApi];
+  let sawMissing = false;
+  let lastError = null;
+  for (const read of readers) {
+    try {
+      const result = await read();
+      if (result.status === 'ok') return result;
+      sawMissing = true;
+    } catch (err) {
+      lastError = err;
+    }
+  }
+  if (sawMissing) return { status: 'missing' };
+  throw lastError || new Error('Could not load store data from GitHub.');
 }
 
 // ============================================================================
@@ -540,17 +610,35 @@ function saveBagToStorage(bag) {
   } catch (e) {}
 }
 
+// Remember the visitor's Light/Dark choice so a page refresh keeps it.
+function loadSavedTheme() {
+  try {
+    return localStorage.getItem('rr_wear_theme') === 'dark' ? 'dark' : 'light';
+  } catch (e) {
+    return 'light';
+  }
+}
+
+function saveTheme(theme) {
+  try {
+    localStorage.setItem('rr_wear_theme', theme === 'dark' ? 'dark' : 'light');
+  } catch (e) {}
+}
+
 // ============================================================================
 // 5. GLOBAL APPLICATION STATE
 // ============================================================================
+let storeLoadPromise = Promise.resolve();
+
 const state = {
-  theme: 'light',
+  theme: loadSavedTheme(),
   isOwnerAuthenticated: sessionStorage.getItem('rr_wear_owner_auth') === 'true',
   ownerAuthRecord: null,
   siteSettings: { ...DEFAULT_SITE_SETTINGS },
   categories: [...DEFAULT_CATEGORIES],
   products: [...DEFAULT_PRODUCTS],
   isDataLoaded: false,
+  remoteStoreReady: false, // true only once the real GitHub store state is known (protects against overwriting)
   isSavingToGithub: false,
 
   // Customer Shopping Bag State
@@ -692,31 +780,27 @@ function applyStorePayload(data) {
 
 async function initStoreFromGithub() {
   try {
-    // 1. Load directly from GitHub Raw / API so every visitor & page refresh sees permanent changes
-    const rawUrl = `https://raw.githubusercontent.com/${GITHUB_CONFIG.owner}/${GITHUB_CONFIG.repo}/${GITHUB_CONFIG.branch}/${GITHUB_CONFIG.dataPath}?_t=${Date.now()}`;
-    let loaded = false;
+    // 1. Load the live store from GitHub. Owners read through the API (always the newest commit),
+    //    visitors read raw.githubusercontent.com first with the API as fallback.
+    const result = await fetchLatestStoreData();
+    let payload = result.status === 'ok' ? result.data : null;
 
-    const rawRes = await fetch(rawUrl, { cache: 'no-store' });
-    if (rawRes.ok) {
-      const jsonData = await rawRes.json();
-      applyStorePayload(jsonData);
-      loaded = true;
-    } else {
-      // Fallback to GitHub Contents API (useful immediately after a commit before CDN refreshes)
-      const apiFile = await githubGetFile(GITHUB_CONFIG.dataPath);
-      if (apiFile && apiFile.content) {
-        const jsonData = JSON.parse(base64ToUtf8(apiFile.content));
-        applyStorePayload(jsonData);
-        loaded = true;
-      }
+    // We now know the true GitHub state (either real data, or confirmed "no file yet"), so saving is safe.
+    state.remoteStoreReady = true;
+
+    // 2. If GitHub's cache returned an older copy than the one THIS browser last saved successfully,
+    //    use the newer one so the owner never sees their own saved edits "disappear" after a refresh.
+    const synced = readLocalSyncedCopy();
+    if (synced && (!payload || (synced.updatedAt || 0) > (payload.updatedAt || 0))) {
+      payload = synced;
     }
 
-    if (!loaded) {
+    if (!payload) {
       const backupRaw = localStorage.getItem('rr_wear_store_backup');
-      if (backupRaw) {
-        applyStorePayload(JSON.parse(backupRaw));
-      }
+      if (backupRaw) payload = JSON.parse(backupRaw);
     }
+
+    if (payload) applyStorePayload(payload);
   } catch (err) {
     console.warn('GitHub store load notice:', err);
     try {
@@ -3191,7 +3275,7 @@ function renderDashboardView() {
             </div>
             <div>
               <label class="block font-ui text-[11px] font-bold uppercase mb-1">New Password (leave blank to keep current)</label>
-              <input id="sec-new-pass" type="password" placeholder="Enter new password..." class="w-full rounded-2xl border px-4 py-2.5 text-sm ${
+              <input id="sec-new-pass" type="password" autocomplete="new-password" placeholder="Enter new password..." class="w-full rounded-2xl border px-4 py-2.5 text-sm ${
                 isDark ? 'bg-[#1B1B21] border-white/15 text-white' : 'bg-white border-black/15'
               }" />
             </div>
@@ -3800,6 +3884,7 @@ document.addEventListener('click', async (e) => {
     document.getElementById('toast-root').innerHTML = '';
   } else if (action === 'toggle-theme') {
     state.theme = state.theme === 'light' ? 'dark' : 'light';
+    saveTheme(state.theme);
     render();
   } else if (action === 'toggle-mobile-menu') {
     state.mobileMenuOpen = !state.mobileMenuOpen;
@@ -4268,6 +4353,7 @@ document.addEventListener('submit', async (e) => {
 
   if (formId === 'owner-login-form') {
     state.loginError = '';
+    await storeLoadPromise; // make sure the latest saved owner email/password has loaded
     const normalizedEmail = state.loginEmail.trim().toLowerCase();
     const inputHash = await hashSecret(state.loginPassword);
     const storedEmail = (state.ownerAuthRecord?.email || 'owner@rrwear.com').toLowerCase();
@@ -4436,4 +4522,4 @@ document.addEventListener('submit', async (e) => {
 // ============================================================================
 window.addEventListener('hashchange', handleHashChange);
 handleHashChange();
-initStoreFromGithub();
+storeLoadPromise = initStoreFromGithub();
