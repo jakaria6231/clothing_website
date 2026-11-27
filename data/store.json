@@ -9,7 +9,7 @@
     "heroPrimaryBtnText": "SHOP NOW",
     "heroSecondaryBtnText": "EXPLORE ALL",
     "heroDescription": "Stay agile without compromising your range of motion. Our technical athletic range is engineered for intense indoor & outdoor training.",
-    "heroImage": "https://images.unsplash.com/photo-1534438327276-14e5300c3a48?auto=format&fit=crop&w=1400&q=85",
+    "heroImage": "https://raw.githubusercontent.com/jakaria6231/clothing_website/main/uploads/1795798454689-interface_logo-removebg-preview__1_.png",
     "heroThumb1": "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&w=300&q=80",
     "heroThumb2": "https://images.unsplash.com/photo-1556821840-3a63f95609a7?auto=format&fit=crop&w=300&q=80",
     "heroThumb3": "https://images.unsplash.com/photo-1552374196-1ab2a1c593e8?auto=format&fit=crop&w=300&q=80",
@@ -328,5 +328,5 @@
     "passwordHash": "423d302ba4c801ed08922680213c8a377223804b92316c494c09115abd31cdb1",
     "updatedAt": 1795756919378
   },
-  "updatedAt": 1795767761345
+  "updatedAt": 1795798465159
 }
