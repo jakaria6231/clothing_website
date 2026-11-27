@@ -73,7 +73,7 @@
         "linkedProductId": "prod-3"
       }
     ],
-    "whatsappNumber": "8801948388894",
+    "whatsappNumber": "8801700000000",
     "telegramUsername": "rrwear_official",
     "messengerUsername": "rrwear.official"
   },
@@ -115,6 +115,26 @@
     }
   ],
   "products": [
+    {
+      "id": "prod-1795798782134",
+      "name": "testing",
+      "price": 120,
+      "categoryId": "cat-men",
+      "visibility": "published",
+      "description": "",
+      "images": [
+        "https://raw.githubusercontent.com/jakaria6231/clothing_website/main/uploads/1795798689773-interface_logo.jpg"
+      ],
+      "videos": [
+        {
+          "name": "web.mp4",
+          "url": "https://raw.githubusercontent.com/jakaria6231/clothing_website/main/uploads/1795798707200-web.mp4"
+        }
+      ],
+      "specifications": [],
+      "createdAt": 1795798782135,
+      "updatedAt": 1795798782135
+    },
     {
       "id": "prod-8",
       "name": "Tactical Crossbody Sling Rig",
@@ -328,5 +348,5 @@
     "passwordHash": "423d302ba4c801ed08922680213c8a377223804b92316c494c09115abd31cdb1",
     "updatedAt": 1795756919378
   },
-  "updatedAt": 1795798645902
+  "updatedAt": 1795798782135
 }
