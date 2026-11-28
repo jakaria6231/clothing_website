@@ -765,3 +765,11 @@ textarea {
     transition-delay: 480ms;
   }
 }
+
+/* ---------- Order modal (Shop Now): links and long text stay inside their box ---------- */
+.rr-inquiry-text {
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
