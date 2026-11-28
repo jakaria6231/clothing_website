@@ -73,7 +73,7 @@
         "linkedProductId": "prod-3"
       }
     ],
-    "whatsappNumber": "8801948388894",
+    "whatsappNumber": "88010000000",
     "instagramUsername": "rrwear_official",
     "messengerUsername": "rrwear.official",
     "telegramUsername": "rrwear_official"
@@ -349,5 +349,5 @@
     "passwordHash": "423d302ba4c801ed08922680213c8a377223804b92316c494c09115abd31cdb1",
     "updatedAt": 1795756919378
   },
-  "updatedAt": 1795845714880
+  "updatedAt": 1795878603339
 }
